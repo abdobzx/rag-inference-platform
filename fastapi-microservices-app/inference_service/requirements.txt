@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+scikit-learn
+numpy
+torch
+transformers
+joblib
+loguru

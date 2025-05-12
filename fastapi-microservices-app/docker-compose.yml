@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  auth_service:
+    build:
+      context: ./auth_service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:80"
+    depends_on:
+      - logging_service
+
+  inference_service:
+    build:
+      context: ./inference_service
+      dockerfile: Dockerfile
+    ports:
+      - "8002:80"
+    depends_on:
+      - logging_service
+
+  logging_service:
+    build:
+      context: ./logging_service
+      dockerfile: Dockerfile
+    ports:
+      - "8003:80"
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:80"
+    depends_on:
+      - auth_service
+      - inference_service
+      - logging_service
+
+networks:
+  default:
+    driver: bridge
