@@ -22,7 +22,7 @@ services:
       context: ./auth_service
       dockerfile: Dockerfile
     ports:
-      - "8001:8000" # Modifié: conteneur sur le port 8000
+      - "8001:8000" 
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,7 +36,7 @@ services:
       context: ./inference_service
       dockerfile: Dockerfile
     ports:
-      - "8002:8001" # Modifié: conteneur sur le port 8001
+      - "8002:8001" 
     depends_on:
       - logging_service
 
@@ -45,18 +45,25 @@ services:
       context: ./logging_service
       dockerfile: Dockerfile
     ports:
-      - "8003:8002" # Modifié: conteneur sur le port 8002
+      - "8003:8002" 
 
   gateway:
     build:
       context: ./gateway
       dockerfile: Dockerfile
     ports:
-      - "8000:8080" # Modifié: conteneur sur le port 8080
+      - "8000:8080" 
     depends_on:
       - auth_service
       - inference_service
       - logging_service
+
+  frontend_react: # Nouveau service pour l'application React
+    build:
+      context: ./frontend_react
+      dockerfile: Dockerfile
+    # Pas besoin de mapper de port ici si Nginx principal s'en charge.
+    # Le Dockerfile de frontend_react expose déjà le port 80 pour son propre Nginx.
 
   nginx:
     build:
@@ -66,6 +73,7 @@ services:
       - "80:80"
     depends_on:
       - gateway
+      - frontend_react # Ajout de la dépendance au frontend
 
 networks:
   default:
