@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Register - SothemaAI{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Register</h2>
+    <form action="/auth/register" method="post">
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="full_name">Full Name (Optional):</label>
+            <input type="text" id="full_name" name="full_name">
+        </div>
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit">Register</button>
+    </form>
+    <p style="text-align: center; margin-top: 10px;">
+        Already have an account? <a href="/login">Login here</a>.
+    </p>
+</div>
+
+<script>
+// Client-side script to handle form submission for registration
+// This script will intercept the form submission, send data as JSON,
+// and handle the response.
+
+const registerForm = document.querySelector('form[action="/auth/register"]');
+
+registerForm.addEventListener('submit', async (event) => {
+    event.preventDefault(); // Prevent default HTML form submission
+
+    const formData = new FormData(registerForm);
+    const data = {};
+    formData.forEach((value, key) => {
+        // FastAPI expects the keys from the Pydantic model
+        if (key === "username") data.username = value;
+        if (key === "email") data.email = value;
+        if (key === "password") data.password = value;
+        if (key === "full_name" && value) data.full_name = value; // Only include if provided
+    });
+
+    try {
+        const response = await fetch('/auth/register', { // This will be proxied by Nginx to the gateway, then to auth_service
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('Registration successful! User ID: ' + result.user_id + '\nPlease login.');
+            window.location.href = '/login'; // Redirect to login page
+        } else {
+            let errorMessage = 'Registration failed.';
+            if (result.detail) {
+                if (typeof result.detail === 'string') {
+                    errorMessage += '\n' + result.detail;
+                } else if (Array.isArray(result.detail)) {
+                    result.detail.forEach(err => {
+                        errorMessage += `\nField: ${err.loc.join(' > ')}, Error: ${err.msg}`;
+                    });
+                } else if (typeof result.detail === 'object') { // Handle cases like the 500 error from auth_service
+                     errorMessage += '\n' + JSON.stringify(result.detail);
+                }
+            }
+            alert(errorMessage);
+        }
+    } catch (error) {
+        console.error('Error during registration:', error);
+        alert('An error occurred during registration. Please try again.');
+    }
+});
+</script>
+{% endblock %}
