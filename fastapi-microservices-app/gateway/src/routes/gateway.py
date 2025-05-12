@@ -15,6 +15,12 @@ async def login(credentials: dict): # Enlever token = Depends(oauth2_scheme) ici
         response = await client.post(f"{AUTH_SERVICE_URL}/auth/login", json=credentials)
     return response.json()
 
+@router.post("/auth/register")
+async def register_user(user_data: dict):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(f"{AUTH_SERVICE_URL}/auth/register", json=user_data)
+    return response.json()
+
 @router.post("/inference/generate")
 async def generate_inference(data: dict, token: str = Depends(oauth2_scheme)):
     async with httpx.AsyncClient() as client:
