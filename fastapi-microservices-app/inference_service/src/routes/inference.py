@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from ..models.payload import InferenceRequest, InferenceResponse
-from utils.model_loader import load_model, predict
+from ..utils.model_loader import load_model, predict
 from auth_service.src.utils.security import get_current_user
 
 router = APIRouter()
