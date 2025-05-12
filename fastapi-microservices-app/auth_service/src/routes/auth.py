@@ -4,13 +4,26 @@ from sqlalchemy.orm import Session
 from .. import models  # Assurez-vous que models.user est accessible via models
 from ..utils import security
 from ..database import get_db  # Changement ici
+from pydantic import BaseModel
+
+# Définir un modèle Pydantic pour la validation des données d'enregistrement
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    password: str
+    full_name: str = None
 
 router = APIRouter()
 
-@router.post("/register")
-def register_user(email: str, full_name: str, password: str, db: Session = Depends(get_db)):
-    hashed_password = security.hash_password(password)
-    new_user = models.user.User(email=email, full_name=full_name, hashed_password=hashed_password)
+@router.post("/auth/register")
+def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
+    hashed_password = security.hash_password(user_data.password)
+    new_user = models.user.User(
+        username=user_data.username,
+        email=user_data.email, 
+        full_name=user_data.full_name, 
+        hashed_password=hashed_password
+    )
     
     db.add(new_user)
     db.commit()

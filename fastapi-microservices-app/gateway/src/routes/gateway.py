@@ -12,7 +12,7 @@ LOGGING_SERVICE_URL = "http://logging_service:8002" # Port interne du service de
 @router.post("/auth/token") # Changement de l'URL pour correspondre à ce que OAuth2PasswordBearer attend
 async def login(credentials: dict): # Enlever token = Depends(oauth2_scheme) ici, car c'est le point de terminaison du token lui-même
     async with httpx.AsyncClient() as client:
-        response = await client.post(f"{AUTH_SERVICE_URL}/auth/login", json=credentials)
+        response = await client.post(f"{AUTH_SERVICE_URL}/token", json=credentials)
     return response.json()
 
 @router.post("/auth/register")
