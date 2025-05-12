@@ -1,15 +1,16 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from ..models.user import User
-from ..utils.security import hash_password, create_access_token
-from database import get_db
+from .. import models  # Assurez-vous que models.user est accessible via models
+from ..utils import security
+from ..database import get_db  # Changement ici
 
 router = APIRouter()
 
 @router.post("/register")
 def register_user(email: str, full_name: str, password: str, db: Session = Depends(get_db)):
-    hashed_password = hash_password(password)
-    new_user = User(email=email, full_name=full_name, hashed_password=hashed_password)
+    hashed_password = security.hash_password(password)
+    new_user = models.user.User(email=email, full_name=full_name, hashed_password=hashed_password)
     
     db.add(new_user)
     db.commit()
@@ -17,13 +18,17 @@ def register_user(email: str, full_name: str, password: str, db: Session = Depen
     
     return {"message": "User registered successfully", "user_id": new_user.id}
 
-@router.post("/login")
-def login_user(email: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    
-    if not user or not verify_password(password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
-    
-    access_token = create_access_token(data={"sub": user.email})
-    
+@router.post("/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(models.user.User).filter(models.user.User.email == form_data.username).first()  # Assurez-vous que User a un attribut email
+    if not user or not security.verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = security.timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires  # Assurez-vous que User a un attribut email
+    )
     return {"access_token": access_token, "token_type": "bearer"}

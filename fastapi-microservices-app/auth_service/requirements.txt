@@ -3,6 +3,8 @@ uvicorn
 python-jose
 passlib[bcrypt]
 sqlmodel
+SQLAlchemy
+psycopg2-binary
 pydantic
 httpx
 pytest
