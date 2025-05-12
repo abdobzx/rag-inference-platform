@@ -20,7 +20,9 @@ async def startup_db_client():
         logger.info("Tables créées avec succès!")
     except Exception as e:
         logger.error(f"Erreur lors de la création des tables: {e}")
-        raise
+        # Ne pas arrêter l'application si nous ne pouvons pas créer les tables
+        # Cette approche permet à l'API de démarrer, même si la BDD n'est pas disponible
+        # Dans un environnement de production, vous pourriez vouloir une approche différente
 
 @app.get("/")
 def read_root():

@@ -1,6 +1,22 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=sothemaai
+      - POSTGRES_PASSWORD=sothemapassword
+      - POSTGRES_DB=sothemadb
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sothemaai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   auth_service:
     build:
       context: ./auth_service
@@ -8,7 +24,12 @@ services:
     ports:
       - "8001:8000" # Modifié: conteneur sur le port 8000
     depends_on:
-      - logging_service
+      postgres:
+        condition: service_healthy
+      logging_service:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgresql://sothemaai:sothemapassword@postgres:5432/sothemadb
 
   inference_service:
     build:
@@ -49,3 +70,6 @@ services:
 networks:
   default:
     driver: bridge
+
+volumes:
+  postgres_data:
