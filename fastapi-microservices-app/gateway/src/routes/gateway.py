@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Form  # Ajout de Form
+from fastapi import APIRouter, Depends, HTTPException, Form, Request  # Ajout de Form et Request
 from fastapi.security import OAuth2PasswordBearer
 import httpx
 import logging
@@ -48,6 +48,77 @@ async def register_user(user_data: dict):
     except httpx.HTTPError as e:
         logger.error(f"Erreur lors de la redirection vers le service d'authentification: {e}")
         raise HTTPException(status_code=500, detail="Erreur de communication avec le service d'authentification")
+
+# --- Routes pour la gestion des clés API via le service d'authentification ---
+
+@router.post("/auth/apikeys")
+async def gateway_create_api_key(request: Request, token: str = Depends(oauth2_scheme)):
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            payload = await request.json()
+            logger.info(f"Redirection de la création de clé API vers {AUTH_SERVICE_URL}/apikeys")
+            response = await client.post(f"{AUTH_SERVICE_URL}/apikeys", json=payload, headers=headers)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Erreur HTTP du service d'authentification (apikeys): {e.response.status_code} - {e.response.text}")
+        # Essayer de parser le détail de l'erreur si disponible
+        detail = "Erreur du service d'authentification"
+        try:
+            detail = e.response.json()
+        except Exception:
+            pass # Garder le message par défaut si le JSON n'est pas valide
+        raise HTTPException(status_code=e.response.status_code, detail=detail)
+    except Exception as e:
+        logger.error(f"Erreur inattendue lors de la création de clé API via gateway: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
+
+@router.get("/auth/apikeys")
+async def gateway_list_api_keys(token: str = Depends(oauth2_scheme)):
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            logger.info(f"Redirection de la liste des clés API vers {AUTH_SERVICE_URL}/apikeys")
+            response = await client.get(f"{AUTH_SERVICE_URL}/apikeys", headers=headers)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Erreur HTTP du service d'authentification (apikeys): {e.response.status_code} - {e.response.text}")
+        detail = "Erreur du service d'authentification"
+        try:
+            detail = e.response.json()
+        except Exception:
+            pass
+        raise HTTPException(status_code=e.response.status_code, detail=detail)
+    except Exception as e:
+        logger.error(f"Erreur inattendue lors du listage des clés API via gateway: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
+
+@router.delete("/auth/apikeys/{key_prefix}")
+async def gateway_revoke_api_key(key_prefix: str, token: str = Depends(oauth2_scheme)):
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            logger.info(f"Redirection de la révocation de clé API {key_prefix} vers {AUTH_SERVICE_URL}/apikeys/{key_prefix}")
+            response = await client.delete(f"{AUTH_SERVICE_URL}/apikeys/{key_prefix}", headers=headers)
+            response.raise_for_status()
+            if response.status_code == 204:
+                # Pour FastAPI, retourner une Response avec status_code 204 est plus propre
+                from fastapi.responses import Response
+                return Response(status_code=204)
+            return response.json() # Au cas où il y aurait un corps pour d'autres codes de succès
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Erreur HTTP du service d'authentification (apikeys): {e.response.status_code} - {e.response.text}")
+        detail = "Erreur du service d'authentification"
+        try:
+            detail = e.response.json()
+        except Exception:
+            pass
+        raise HTTPException(status_code=e.response.status_code, detail=detail)
+    except Exception as e:
+        logger.error(f"Erreur inattendue lors de la révocation de clé API via gateway: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
 
 @router.post("/inference/generate")
 async def generate_inference(data: dict, token: str = Depends(oauth2_scheme)):
