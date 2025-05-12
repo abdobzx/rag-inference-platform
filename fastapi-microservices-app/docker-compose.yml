@@ -37,6 +37,15 @@ services:
       - inference_service
       - logging_service
 
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+
 networks:
   default:
     driver: bridge
