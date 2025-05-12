@@ -1,6 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .routes.gateway import router as gateway_router
+import logging
+
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -15,6 +23,10 @@ app.add_middleware(
 
 # Include the gateway routes
 app.include_router(gateway_router)
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Gateway service is starting up...")
 
 @app.get("/")
 def read_root():
