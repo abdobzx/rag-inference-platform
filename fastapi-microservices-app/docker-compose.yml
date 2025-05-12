@@ -8,7 +8,7 @@ services:
     environment:
       - POSTGRES_USER=sothemaai
       - POSTGRES_PASSWORD=sothemapassword
-      - POSTGRES_DB=sothemadb
+      - POSTGRES_DB=sothemaai
     ports:
       - "5432:5432"
     healthcheck:
@@ -29,7 +29,7 @@ services:
       logging_service:
         condition: service_started
     environment:
-      - DATABASE_URL=postgresql://sothemaai:sothemapassword@postgres:5432/sothemadb
+      - DATABASE_URL=postgresql://sothemaai:sothemapassword@postgres:5432/sothemaai
 
   inference_service:
     build:
