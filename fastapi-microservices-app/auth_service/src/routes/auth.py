@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from .. import models  # Assurez-vous que models.user est accessible via models
+from ..models.user import User
 from ..utils import security
-from ..database import get_db  # Changement ici
+from ..database import get_db
 from pydantic import BaseModel
 
 # Définir un modèle Pydantic pour la validation des données d'enregistrement
@@ -18,7 +18,7 @@ router = APIRouter()
 @router.post("/auth/register")
 def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     hashed_password = security.hash_password(user_data.password)
-    new_user = models.user.User(
+    new_user = User(
         username=user_data.username,
         email=user_data.email, 
         full_name=user_data.full_name, 
@@ -33,7 +33,7 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(models.user.User).filter(models.user.User.email == form_data.username).first()  # Assurez-vous que User a un attribut email
+    user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -42,6 +42,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     access_token_expires = security.timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = security.create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires  # Assurez-vous que User a un attribut email
+        data={"sub": user.email}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
