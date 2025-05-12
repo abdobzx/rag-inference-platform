@@ -6,7 +6,7 @@ services:
       context: ./auth_service
       dockerfile: Dockerfile
     ports:
-      - "8001:80"
+      - "8001:8000" # Modifié: conteneur sur le port 8000
     depends_on:
       - logging_service
 
@@ -15,7 +15,7 @@ services:
       context: ./inference_service
       dockerfile: Dockerfile
     ports:
-      - "8002:80"
+      - "8002:8001" # Modifié: conteneur sur le port 8001
     depends_on:
       - logging_service
 
@@ -24,14 +24,14 @@ services:
       context: ./logging_service
       dockerfile: Dockerfile
     ports:
-      - "8003:80"
+      - "8003:8002" # Modifié: conteneur sur le port 8002
 
   gateway:
     build:
       context: ./gateway
       dockerfile: Dockerfile
     ports:
-      - "8000:80"
+      - "8000:8080" # Modifié: conteneur sur le port 8080
     depends_on:
       - auth_service
       - inference_service
