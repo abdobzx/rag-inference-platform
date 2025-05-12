@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from .routes.auth import router as auth_router
 from .database import engine, Base
 from .models.user import User  # Import explicite du modèle User
+from .models.api_key import APIKey  # Importer le modèle APIKey
 import logging
 
 # Configuration du logger
