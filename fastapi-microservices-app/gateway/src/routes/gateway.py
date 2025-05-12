@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Form, Request  # Ajout de Form et Request
+from fastapi import APIRouter, Depends, HTTPException, Form, Request, Header  # Ajout de Form, Request et Header
 from fastapi.security import OAuth2PasswordBearer
 import httpx
 import logging
@@ -121,15 +121,39 @@ async def gateway_revoke_api_key(key_prefix: str, token: str = Depends(oauth2_sc
         raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
 
 @router.post("/inference/generate")
-async def generate_inference(data: dict, token: str = Depends(oauth2_scheme)):
+async def generate_inference(request: Request, x_api_key: str | None = Header(None)):
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Clé API manquante dans l'en-tête X-API-Key")
+    
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(f"{INFERENCE_SERVICE_URL}/inference/generate", json=data)
+            # Transmettre le corps de la requête originale et la clé API
+            headers = {"X-API-Key": x_api_key, "Content-Type": "application/json"}
+            payload = await request.json() # Lire le corps JSON de la requête entrante
+            
+            logger.info(f"Redirection de la demande d'inférence vers {INFERENCE_SERVICE_URL}/inference/generate avec le préfixe de clé: {x_api_key[:8]}...")
+            
+            response = await client.post(
+                f"{INFERENCE_SERVICE_URL}/inference/generate", 
+                json=payload, 
+                headers=headers
+            )
             response.raise_for_status()
             return response.json()
-    except httpx.HTTPError as e:
-        logger.error(f"Erreur lors de la redirection vers le service d'inférence: {e}")
-        raise HTTPException(status_code=500, detail="Erreur de communication avec le service d'inférence")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Erreur HTTP du service d'inférence: {e.response.status_code} - {e.response.text}")
+        detail = "Erreur du service d'inférence"
+        try:
+            detail = e.response.json() # Essayer de récupérer le détail de l'erreur du service
+        except Exception:
+            pass # Garder le message par défaut si le JSON n'est pas valide
+        raise HTTPException(status_code=e.response.status_code, detail=detail)
+    except httpx.RequestError as e:
+        logger.error(f"Erreur de requête lors de la redirection vers le service d'inférence: {e}")
+        raise HTTPException(status_code=503, detail="Erreur de communication avec le service d'inférence")
+    except Exception as e:
+        logger.error(f"Erreur inattendue dans generate_inference (gateway): {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
 
 @router.get("/logs")
 async def get_logs(token: str = Depends(oauth2_scheme)):

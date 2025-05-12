@@ -7,3 +7,4 @@ torch
 transformers
 joblib
 loguru
+httpx # Ajouté pour les appels HTTP au service d'authentification
