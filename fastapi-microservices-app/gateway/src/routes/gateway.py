@@ -14,12 +14,13 @@ AUTH_SERVICE_URL = "http://auth_service:8000"  # Port interne du service d'authe
 INFERENCE_SERVICE_URL = "http://inference_service:8001"  # Port interne du service d'inférence
 LOGGING_SERVICE_URL = "http://logging_service:8002"  # Port interne du service de journalisation
 
-@router.post("/auth/token")
-async def login(credentials: dict):
+@router.post("/token") # Changé de /auth/token à /token
+async def login_gateway(credentials: dict): # Renommé la fonction pour éviter confusion avec oauth2_scheme si importé globalement
     try:
         async with httpx.AsyncClient() as client:
             logger.info(f"Redirection de la demande de token vers {AUTH_SERVICE_URL}/token")
-            response = await client.post(f"{AUTH_SERVICE_URL}/token", json=credentials)
+            # Le service d'authentification attend les données en form-data, pas en JSON pour /token
+            response = await client.post(f"{AUTH_SERVICE_URL}/token", data=credentials) # Changé json=credentials en data=credentials
             response.raise_for_status()  # Lever une exception pour les codes d'erreur HTTP
             return response.json()
     except httpx.HTTPError as e:
