@@ -6,4 +6,5 @@ passlib[bcrypt]
 pydantic
 sqlmodel
 loguru
+python-multipart
 # jinja2 # Supprimé car plus utilisé
