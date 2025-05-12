@@ -21,8 +21,8 @@ FROM nginx:1.25-alpine
 # Copier les fichiers construits de l'étape précédente vers le répertoire de service de Nginx
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copier une configuration Nginx personnalisée (si nécessaire, sinon Nginx servira index.html par défaut)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copier la configuration Nginx personnalisée pour le frontend React
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Exposer le port 80
 EXPOSE 80
