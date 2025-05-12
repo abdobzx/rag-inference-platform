@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from .routes.auth import router as auth_router
-from .routes.api_key_routes import router as api_key_router  # Importer le nouveau routeur
+from .routes.api_key_routes import router as api_key_router, internal_router as api_key_internal_router  # Importer le nouveau routeur interne
 from .database import engine, Base
 from .models.user import User  # Import explicite du modèle User
 from .models.api_key import APIKey  # Importer le modèle APIKey
@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 app.include_router(auth_router)
-app.include_router(api_key_router)  # Inclure le nouveau routeur
+app.include_router(api_key_router)  # Inclure le routeur de gestion des clés API (protégé par JWT)
+app.include_router(api_key_internal_router)  # Inclure le routeur de validation interne des clés API (non protégé par JWT)
 
 @app.on_event("startup")
 async def startup_db_client():
