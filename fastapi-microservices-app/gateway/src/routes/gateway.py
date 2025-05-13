@@ -66,6 +66,31 @@ async def register_user(user_data: dict):
         logger.error(f"Erreur inattendue dans register_user (gateway): {type(e).__name__} - {e}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
 
+@router.post("/auth/verify-email") # Nouvelle route pour la vérification d'email
+async def verify_email_gateway(verification_data: dict):
+    try:
+        async with httpx.AsyncClient() as client:
+            logger.info(f"Redirection de la demande de vérification d'email vers {AUTH_SERVICE_URL}/auth/verify-email")
+            response = await client.post(f"{AUTH_SERVICE_URL}/auth/verify-email", json=verification_data)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Erreur HTTP du service d'authentification lors de la vérification d'email: {e.response.status_code} - {e.response.text}")
+        detail = "Erreur du service d'authentification"
+        try:
+            detail = e.response.json()
+        except json.JSONDecodeError:
+            detail = e.response.text if e.response.text else detail
+        except Exception:
+            pass
+        raise HTTPException(status_code=e.response.status_code, detail=detail)
+    except httpx.RequestError as e:
+        logger.error(f"Erreur de requête lors de la redirection pour la vérification d'email: {e}")
+        raise HTTPException(status_code=503, detail="Erreur de communication avec le service d'authentification")
+    except Exception as e:
+        logger.error(f"Erreur inattendue dans verify_email_gateway: {type(e).__name__} - {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
+
 # --- Routes pour la gestion des clés API via le service d'authentification ---
 
 @router.post("/auth/apikeys")
