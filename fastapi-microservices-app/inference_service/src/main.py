@@ -62,4 +62,28 @@ app.include_router(inference_router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Inference Service is running."}
+    return {
+        "message": "Service d'inférence SothemaAI - Actif et en cours d'exécution.",
+        "description": "Ce service fournit des capacités d'inférence de modèle de langage, y compris la génération de texte augmentée par RAG.",
+        "available_routes": [
+            {
+                "path": "/generate",
+                "method": "POST",
+                "description": "Génère du texte basé sur une invite d'entrée. Peut utiliser RAG pour augmenter l'invite avec des informations pertinentes provenant d'une base de connaissances.",
+                "request_body": {
+                    "text_input": "(string, requis) L'invite de texte pour le modèle de langage.",
+                    "max_length": "(integer, optionnel, défaut: 150) Le nombre maximum de nouveaux tokens à générer."
+                },
+                "headers": {
+                    "X-API-Key": "(string, requis) Votre clé API pour l'authentification."
+                },
+                "example_curl": "curl -X POST http://<host>:<port>/generate -H 'Content-Type: application/json' -H 'X-API-Key: VOTRE_CLE_API' -d '{\"text_input\": \"Expliquez le concept de RAG.\", \"max_length\": 100}'"
+            },
+            {
+                "path": "/",
+                "method": "GET",
+                "description": "Affiche ce message d'aide."
+            }
+        ],
+        "notes": "L'accès à l'endpoint /generate nécessite une clé API valide passée dans l'en-tête X-API-Key. Les clés API peuvent être gérées via le service d'authentification."
+    }
