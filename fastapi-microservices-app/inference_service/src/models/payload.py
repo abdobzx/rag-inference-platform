@@ -1,9 +1,10 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 
 class InferenceRequest(BaseModel):
-    text_input: str = Field(..., description="The text prompt for the language model.")
-    max_length: int | None = Field(default=150, description="Maximum number of new tokens to generate. Defaults to 150.")
+    text_input: str = Field(..., example="Expliquez l'importance de l'IA.")
+    max_length: int = Field(150, gt=0, le=512, example=150)
+    context_chunks: Optional[List[str]] = Field(None, example=["Chunk 1 de contexte.", "Chunk 2 de contexte."])
 
 class InferenceResponse(BaseModel):
     output_data: str

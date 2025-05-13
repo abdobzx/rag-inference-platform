@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from ..models.payload import InferenceRequest, InferenceResponse, EmbeddingRequestPayload, EmbeddingResponsePayload
 from ..utils.model_loader import predict, generate_embeddings
 from ..utils.security import validate_api_key, ValidatedUserData
+# Importer les templates de prompt depuis rag_prompt_augmenter ou les définir ici si nécessaire
+from ..rag.rag_prompt_augmenter import CONTEXT_PROMPT_TEMPLATE, AUGMENTED_PROMPT_TEMPLATE
 import logging
 from typing import List
 
@@ -19,26 +21,36 @@ async def generate_inference(
     
     model = fastapi_request.app.state.model
     tokenizer = fastapi_request.app.state.tokenizer
-    rag_augmenter = fastapi_request.app.state.rag_augmenter
+    rag_augmenter = fastapi_request.app.state.rag_augmenter # Peut toujours être utilisé comme fallback
 
     if model is None or tokenizer is None:
         logger.error("Le modèle d'inférence ou le tokenizer n'a pas été chargé dans l'état de l'application.")
         raise HTTPException(status_code=503, detail="Modèle ou tokenizer non chargé ou indisponible.")
     
-    prompt_to_use = payload.text_input 
-    if rag_augmenter:
+    prompt_to_use = payload.text_input
+
+    if payload.context_chunks:
+        logger.info(f"Utilisation des context_chunks fournis directement ({len(payload.context_chunks)} chunks) pour l'utilisateur {validated_data.user_id}.")
+        context_str = "\n".join([f"- {chunk}" for chunk in payload.context_chunks])
+        context_prompt_segment = CONTEXT_PROMPT_TEMPLATE.format(context=context_str)
+        prompt_to_use = AUGMENTED_PROMPT_TEMPLATE.format(
+            context_prompt=context_prompt_segment,
+            user_prompt=payload.text_input # La question originale de l'utilisateur
+        )
+        logger.info(f"Prompt construit avec les chunks fournis pour l'utilisateur {validated_data.user_id}.")
+    elif rag_augmenter: # Fallback: utiliser le RAG interne si aucun chunk n'est fourni
         try:
-            logger.info(f"Tentative d'augmentation du prompt pour l'utilisateur {validated_data.user_id}")
+            logger.info(f"Tentative d'augmentation du prompt via RAG interne pour l'utilisateur {validated_data.user_id}")
             augmented_prompt = rag_augmenter.augment_prompt(user_prompt=payload.text_input)
             if augmented_prompt != payload.text_input:
-                logger.info(f"Prompt augmenté avec succès pour l'utilisateur {validated_data.user_id}.")
+                logger.info(f"Prompt augmenté avec succès via RAG interne pour l'utilisateur {validated_data.user_id}.")
                 prompt_to_use = augmented_prompt
             else:
-                logger.info(f"Aucun contexte pertinent trouvé ou le prompt est resté inchangé pour l'utilisateur {validated_data.user_id}.")
+                logger.info(f"Aucun contexte pertinent trouvé par RAG interne ou le prompt est resté inchangé pour l'utilisateur {validated_data.user_id}.")
         except Exception as e:
-            logger.error(f"Erreur lors de l'augmentation du prompt pour l'utilisateur {validated_data.user_id}: {e}. Utilisation du prompt original.", exc_info=True)
+            logger.error(f"Erreur lors de l'augmentation du prompt via RAG interne pour l'utilisateur {validated_data.user_id}: {e}. Utilisation du prompt original.", exc_info=True)
     else:
-        logger.warning("L'augmentateur RAG n'est pas disponible. Utilisation du prompt original sans augmentation.")
+        logger.warning("Ni context_chunks fournis, ni augmentateur RAG disponible. Utilisation du prompt original sans augmentation.")
 
     try:
         generated_text = predict(
