@@ -1,27 +1,36 @@
-from fastapi import FastAPI, Request  # Request ajouté
+from fastapi import FastAPI, Request
 from .routes.inference import router as inference_router
-from .utils.model_loader import load_model
+# Changement ici : importer la nouvelle fonction de chargement
+from .utils.model_loader import load_model_and_tokenizer 
 import logging
 
 app = FastAPI()
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)  # Utiliser un logger nommé
+logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Inference service is starting up... Loading model.")
-    # Pour l'instant, charge le PlaceholderModel car aucun model_path n'est fourni.
-    # Si vous aviez un fichier modèle, par exemple dans src/models/your_model.joblib :
-    # app.state.model = load_model("src/models/your_model.joblib")
-    # Assurez-vous que le chemin est correct *à l'intérieur du conteneur*.
-    app.state.model = load_model()
-    if app.state.model:
-        logger.info("Model stored in app.state.model.")
-    else:
-        # Ne devrait pas se produire avec le PlaceholderModel
-        logger.error("Failed to load model into app.state.")
+    logger.info("Service d'inférence en cours de démarrage... Chargement du modèle et du tokenizer.")
+    try:
+        # Charger le modèle et le tokenizer au démarrage
+        # Le nom du modèle (par ex. "distilgpt2") est codé en dur dans load_model_and_tokenizer pour l'instant
+        model, tokenizer = load_model_and_tokenizer()
+        app.state.model = model
+        app.state.tokenizer = tokenizer
+        if app.state.model and app.state.tokenizer:
+            logger.info("Modèle et tokenizer stockés dans app.state.")
+        else:
+            # Ce cas ne devrait pas se produire si load_model_and_tokenizer lève une exception en cas d'échec
+            logger.error("Échec du chargement du modèle et/ou du tokenizer dans app.state.")
+            # Vous pourriez vouloir arrêter l'application ici si le modèle est critique
+    except Exception as e:
+        logger.error(f"Erreur critique lors du chargement du modèle au démarrage: {e}", exc_info=True)
+        # Gérer l'échec du chargement du modèle - par exemple, arrêter l'application
+        # ou fonctionner en mode dégradé si possible.
+        # Pour l'instant, nous laissons l'application démarrer, mais les requêtes d'inférence échoueront.
+        app.state.model = None
+        app.state.tokenizer = None
 
 @app.on_event("shutdown")
 async def shutdown_event():
