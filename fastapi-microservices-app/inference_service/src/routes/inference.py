@@ -27,9 +27,25 @@ async def generate_inference(
         raise HTTPException(status_code=503, detail="Modèle non chargé ou indisponible.")
     
     try:
-        prediction = predict(model, payload.input_data)
-        logger.info(f"Inférence réussie pour l'utilisateur {validated_data.user_id}. Entrée: {payload.input_data[:50]}...") # Log tronqué
-        return InferenceResponse(prediction=prediction)
+        # La fonction predict retourne un dictionnaire, par exemple: 
+        # {"prediction": "...", "input_data": "..."} pour le PlaceholderModel
+        prediction_result = predict(model, payload.input_data)
+        
+        # Extraire les données pertinentes du résultat de la prédiction
+        # et les mapper aux champs de InferenceResponse.
+        # Ceci devra peut-être être ajusté lorsque vous utiliserez un vrai modèle.
+        output_content = ""
+        if isinstance(prediction_result, dict) and "prediction" in prediction_result:
+            output_content = prediction_result["prediction"]
+        elif isinstance(prediction_result, str): # Au cas où un futur modèle retournerait directement une chaîne
+            output_content = prediction_result
+        else:
+            # Gérer le cas où la structure de prediction_result n'est pas celle attendue
+            logger.warning(f"Structure de résultat de prédiction inattendue: {prediction_result}")
+            output_content = str(prediction_result) # Fallback pour convertir en chaîne
+
+        logger.info(f"Inférence réussie pour l'utilisateur {validated_data.user_id}. Entrée: {payload.input_data[:50]}...")
+        return InferenceResponse(output_data=output_content, status="success")
     except Exception as e:
-        logger.error(f"Erreur lors de la prédiction pour l'utilisateur {validated_data.user_id}: {e}")
+        logger.error(f"Erreur lors de la prédiction pour l'utilisateur {validated_data.user_id}: {e}", exc_info=True) # Ajout de exc_info=True pour la trace complète
         raise HTTPException(status_code=500, detail="Erreur lors de la génération de l'inférence.")
