@@ -10,3 +10,4 @@ loguru
 httpx # Ajouté pour les appels HTTP au service d'authentification
 sentence-transformers
 faiss-cpu
+accelerate # Ajouté pour les modèles Transformers plus volumineux
