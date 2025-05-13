@@ -7,11 +7,13 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState(''); // Ajout de l'état pour le message de succès
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage(''); // Réinitialiser le message de succès
     setLoading(true);
 
     try {
@@ -29,9 +31,11 @@ const LoginPage = () => {
       console.log('Login successful:', response.data);
       // Stocker le token (par exemple, dans localStorage) et rediriger
       localStorage.setItem('accessToken', response.data.access_token);
-      // Rediriger vers une page protégée, par exemple un tableau de bord
-      navigate('/'); // Pour l'instant, retour à l'accueil
-      alert('Connexion réussie!'); // Ou une notification plus élégante
+      setSuccessMessage('Connexion réussie ! Vous allez être redirigé...'); // Définir le message de succès
+      
+      setTimeout(() => {
+        navigate('/'); 
+      }, 1500); // Rediriger après 1.5 secondes
 
     } catch (err) {
       console.error('Login error:', err.response ? err.response.data : err.message);
@@ -43,7 +47,17 @@ const LoginPage = () => {
   return (
     <div className="max-w-md mx-auto mt-10 bg-surface p-8 rounded-xl shadow-xl">
       <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">Connexion</h2>
-      {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Erreur !</strong>
+          <span className="block sm:inline"> {error}</span>
+        </div>
+      )}
+      {successMessage && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <span className="block sm:inline">{successMessage}</span>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700">
