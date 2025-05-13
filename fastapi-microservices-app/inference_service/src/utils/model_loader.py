@@ -1,7 +1,8 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, List
 import logging
 from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel, PreTrainedTokenizer
 import torch
+from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -10,9 +11,11 @@ logger = logging.getLogger(__name__)
 # Ils seront initialisés au démarrage de l'application FastAPI.
 _model: PreTrainedModel | None = None
 _tokenizer: PreTrainedTokenizer | None = None
+_embedding_model: SentenceTransformer | None = None
 
 # Changer le nom du modèle par défaut ici
-DEFAULT_MODEL_NAME = "deepseek-ai/deepseek-coder-1.3b-instruct" 
+DEFAULT_MODEL_NAME = "deepseek-ai/deepseek-coder-1.3b-instruct"
+DEFAULT_EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 def load_model_and_tokenizer(model_name: str = DEFAULT_MODEL_NAME) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     """
@@ -53,6 +56,48 @@ def load_model_and_tokenizer(model_name: str = DEFAULT_MODEL_NAME) -> Tuple[PreT
     except Exception as e:
         logger.error(f"Erreur lors du chargement du modèle '{model_name}' ou du tokenizer: {e}", exc_info=True)
         raise  # Relancer l'exception pour que l'application FastAPI puisse la gérer
+
+def load_embedding_model(model_name: str = DEFAULT_EMBEDDING_MODEL_NAME) -> SentenceTransformer:
+    """
+    Charge un modèle de sentence-transformer depuis Hugging Face.
+    Utilise une variable globale pour stocker le modèle une fois chargé.
+    """
+    global _embedding_model
+    if _embedding_model is not None:
+        logger.info(f"Modèle d'embedding '{model_name}' déjà chargé.")
+        return _embedding_model
+
+    try:
+        logger.info(f"Chargement du modèle d'embedding '{model_name}'...")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        logger.info(f"Utilisation du périphérique pour le modèle d'embedding : {device}")
+        
+        embedding_model = SentenceTransformer(model_name, device=device)
+        _embedding_model = embedding_model
+        logger.info(f"Modèle d'embedding '{model_name}' chargé avec succès sur {device}.")
+        return embedding_model
+    except Exception as e:
+        logger.error(f"Erreur lors du chargement du modèle d'embedding '{model_name}': {e}", exc_info=True)
+        raise
+
+def generate_embeddings(texts: List[str], embedding_model: SentenceTransformer) -> List[List[float]]:
+    """
+    Génère des embeddings pour une liste de textes en utilisant le modèle de sentence-transformer chargé.
+    """
+    try:
+        logger.info(f"Génération d'embeddings pour {len(texts)} textes.")
+        embeddings = embedding_model.encode(texts, convert_to_tensor=False) # convert_to_tensor=False pour obtenir des listes de floats
+        # S'assurer que la sortie est une liste de listes de floats
+        if hasattr(embeddings, 'tolist'): # Si c'est un ndarray numpy ou un tenseur PyTorch
+            embeddings_list = embeddings.tolist()
+        else: # Si c'est déjà une liste de listes (ou similaire)
+            embeddings_list = list(map(list, embeddings))
+
+        logger.info(f"Embeddings générés avec succès. Premier embedding (tronqué): {str(embeddings_list[0][:5]) if embeddings_list and embeddings_list[0] else 'N/A'}...")
+        return embeddings_list
+    except Exception as e:
+        logger.error(f"Erreur lors de la génération des embeddings: {e}", exc_info=True)
+        raise # Relancer pour une gestion d'erreur plus haut niveau
 
 def predict(text_input: str, model: PreTrainedModel, tokenizer: PreTrainedTokenizer, max_length: int = 150) -> str:
     """

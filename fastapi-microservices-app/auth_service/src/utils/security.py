@@ -30,7 +30,7 @@ except Exception as e:
     logger.warning("Utilisation de sha256_crypt comme fallback pour le hachage des mots de passe")
 
 # Clé secrète pour l'encodage et le décodage JWT
-SECRET_KEY = "your_secret_key"  # Change this to a secure random key
+SECRET_KEY = "your_secret_key"  # Rétabli à la valeur précédente
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 VERIFICATION_CODE_LENGTH = 6 # Longueur du code de vérification
