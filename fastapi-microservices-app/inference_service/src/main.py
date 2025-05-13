@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Request
 from .routes.inference import router as inference_router
-# Changement ici : importer la nouvelle fonction de chargement
-from .utils.model_loader import load_model_and_tokenizer
-# Ajouts pour RAG
+# Updated import to include new model loading function
+from .utils.model_loader import load_model_and_tokenizer, load_embedding_model
 from .rag.knowledge_base import KnowledgeBase
 from .rag.retriever import Retriever
 from .rag.rag_prompt_augmenter import RagPromptAugmenter
@@ -15,26 +14,32 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Service d'inférence en cours de démarrage... Chargement du modèle et du tokenizer.")
+    logger.info("Service d'inférence en cours de démarrage... Chargement des modèles.")
+    # Charger le modèle de génération et le tokenizer
     try:
-        # Charger le modèle et le tokenizer au démarrage
-        # Le nom du modèle (par ex. "distilgpt2") est codé en dur dans load_model_and_tokenizer pour l'instant
         model, tokenizer = load_model_and_tokenizer()
         app.state.model = model
         app.state.tokenizer = tokenizer
         if app.state.model and app.state.tokenizer:
-            logger.info("Modèle et tokenizer stockés dans app.state.")
+            logger.info("Modèle de génération et tokenizer stockés dans app.state.")
         else:
-            # Ce cas ne devrait pas se produire si load_model_and_tokenizer lève une exception en cas d'échec
-            logger.error("Échec du chargement du modèle et/ou du tokenizer dans app.state.")
-            # Vous pourriez vouloir arrêter l'application ici si le modèle est critique
+            logger.error("Échec du chargement du modèle de génération et/ou du tokenizer dans app.state.")
     except Exception as e:
-        logger.error(f"Erreur critique lors du chargement du modèle au démarrage: {e}", exc_info=True)
-        # Gérer l'échec du chargement du modèle - par exemple, arrêter l'application
-        # ou fonctionner en mode dégradé si possible.
-        # Pour l'instant, nous laissons l'application démarrer, mais les requêtes d'inférence échoueront.
+        logger.error(f"Erreur critique lors du chargement du modèle de génération au démarrage: {e}", exc_info=True)
         app.state.model = None
         app.state.tokenizer = None
+
+    # Charger le modèle d'embedding
+    try:
+        embedding_model = load_embedding_model()
+        app.state.embedding_model = embedding_model
+        if app.state.embedding_model:
+            logger.info("Modèle d'embedding stocké dans app.state.")
+        else:
+            logger.error("Échec du chargement du modèle d'embedding dans app.state.")
+    except Exception as e:
+        logger.error(f"Erreur critique lors du chargement du modèle d'embedding au démarrage: {e}", exc_info=True)
+        app.state.embedding_model = None
 
     logger.info("Initialisation des composants RAG...")
     try:
@@ -64,7 +69,7 @@ app.include_router(inference_router)
 def read_root():
     return {
         "message": "Service d'inférence SothemaAI - Actif et en cours d'exécution.",
-        "description": "Ce service fournit des capacités d'inférence de modèle de langage, y compris la génération de texte augmentée par RAG.",
+        "description": "Ce service fournit des capacités d'inférence de modèle de langage, y compris la génération de texte augmentée par RAG et la création d'embeddings.",
         "available_routes": [
             {
                 "path": "/generate",
@@ -78,6 +83,18 @@ def read_root():
                     "X-API-Key": "(string, requis) Votre clé API pour l'authentification."
                 },
                 "example_curl": "curl -X POST http://<host>:<port>/generate -H 'Content-Type: application/json' -H 'X-API-Key: VOTRE_CLE_API' -d '{\"text_input\": \"Expliquez le concept de RAG.\", \"max_length\": 100}'"
+            },
+            {
+                "path": "/embed",
+                "method": "POST",
+                "description": "Génère des embeddings pour une liste de textes fournis.",
+                "request_body": {
+                    "texts": "(list[string], requis) Une liste de chaînes de caractères pour lesquelles générer des embeddings."
+                },
+                "headers": {
+                    "X-API-Key": "(string, requis) Votre clé API pour l'authentification."
+                },
+                "example_curl": "curl -X POST http://<host>:<port>/embed -H 'Content-Type: application/json' -H 'X-API-Key: VOTRE_CLE_API' -d '{\"texts\": [\"Ceci est un exemple de texte.\", \"Un autre exemple.\"]}'"
             },
             {
                 "path": "/",

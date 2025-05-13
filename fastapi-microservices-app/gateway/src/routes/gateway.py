@@ -239,6 +239,57 @@ async def generate_inference(request: Request, x_api_key: str | None = Header(No
         logger.error(f"Erreur inattendue dans generate_inference (gateway): {type(e).__name__} - {e}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
 
+@router.post("/inference/embed")
+async def embed_texts(request: Request, x_api_key: str | None = Header(None)):
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Clé API manquante dans l'en-tête X-API-Key")
+
+    raw_body = await request.body()
+    try:
+        payload = json.loads(raw_body)
+        if not isinstance(payload, dict) or "texts" not in payload or not isinstance(payload["texts"], list):
+             logger.error(f"Corps JSON invalide pour /inference/embed. Attendu un objet avec une clé 'texts' (liste de chaînes). Reçu: {raw_body.decode(errors='ignore')}")
+             raise HTTPException(status_code=400, detail="Corps JSON invalide. Attendu un objet avec une clé 'texts' (liste de chaînes).")
+    except json.JSONDecodeError:
+        logger.error(f"Corps JSON invalide ou vide reçu pour /inference/embed. Corps brut: {raw_body.decode(errors='ignore')}")
+        raise HTTPException(status_code=400, detail="Corps JSON invalide, vide ou malformé.")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            headers_for_post = {"X-API-Key": x_api_key, "Content-Type": "application/json"}
+            
+            logger.info(f"Redirection de la demande d'embedding vers {INFERENCE_SERVICE_URL}/embed avec le préfixe de clé: {x_api_key[:8]}...")
+            
+            response = await client.post(
+                f"{INFERENCE_SERVICE_URL}/embed", 
+                json=payload, 
+                headers=headers_for_post
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Erreur HTTP du service d'inférence (embed): {e.response.status_code} - {e.response.text}")
+        detail_message = "Erreur du service d'inférence (embed)"
+        try:
+            error_detail_json = e.response.json()
+            if isinstance(error_detail_json, dict) and 'detail' in error_detail_json:
+                detail_message = error_detail_json['detail']
+            elif isinstance(error_detail_json, str):
+                detail_message = error_detail_json
+            else:
+                detail_message = e.response.text if e.response.text else "Détail de l'erreur non-JSON ou mal structuré du service d'inférence."
+        except json.JSONDecodeError:
+            detail_message = e.response.text if e.response.text else "Détail de l'erreur non-JSON du service d'inférence."
+        except Exception:
+            pass 
+        raise HTTPException(status_code=e.response.status_code, detail=detail_message)
+    except httpx.RequestError as e:
+        logger.error(f"Erreur de requête lors de la redirection vers le service d'inférence (embed): {e}")
+        raise HTTPException(status_code=503, detail="Erreur de communication avec le service d'inférence")
+    except Exception as e:
+        logger.error(f"Erreur inattendue dans embed_texts (gateway): {type(e).__name__} - {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
+
 @router.get("/logs")
 async def get_logs(token: str = Depends(oauth2_scheme)):
     try:
