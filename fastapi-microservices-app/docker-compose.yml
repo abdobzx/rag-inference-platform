@@ -30,6 +30,8 @@ services:
         condition: service_started
     environment:
       - DATABASE_URL=postgresql://sothemaai:sothemapassword@postgres:5432/sothemaai
+      - EMAIL_HOST_USER=bzaizabdo2@gmail.com  # << REMPLACEZ CECI
+      - EMAIL_HOST_PASSWORD=ycvs qngz ymgz kwnn # << REMPLACEZ CECI
 
   inference_service:
     build:
