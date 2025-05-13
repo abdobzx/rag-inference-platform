@@ -44,11 +44,27 @@ async def register_user(user_data: dict):
         async with httpx.AsyncClient() as client:
             logger.info(f"Redirection de la demande d'enregistrement vers {AUTH_SERVICE_URL}/auth/register")
             response = await client.post(f"{AUTH_SERVICE_URL}/auth/register", json=user_data)
-            response.raise_for_status()
+            response.raise_for_status()  # Lève une exception pour les codes d'erreur HTTP 4xx/5xx
             return response.json()
-    except httpx.HTTPError as e:
-        logger.error(f"Erreur lors de la redirection vers le service d'authentification: {e}")
-        raise HTTPException(status_code=500, detail="Erreur de communication avec le service d'authentification")
+    except httpx.HTTPStatusError as e: # Capturer spécifiquement les erreurs HTTP de la requête proxy
+        logger.error(f"Erreur HTTP du service d'authentification lors de l'enregistrement: {e.response.status_code} - {e.response.text}")
+        detail = "Erreur du service d'authentification"
+        try:
+            # Essayer de parser le détail de l'erreur si la réponse est du JSON
+            detail = e.response.json() 
+        except json.JSONDecodeError:
+            # Si la réponse n'est pas du JSON, utiliser le texte brut si disponible
+            detail = e.response.text if e.response.text else detail
+        except Exception:
+            # Fallback si une autre erreur se produit lors de l'analyse des détails
+            pass
+        raise HTTPException(status_code=e.response.status_code, detail=detail)
+    except httpx.RequestError as e: # Capturer les erreurs de requête (ex: service non joignable)
+        logger.error(f"Erreur de requête lors de la redirection vers le service d'authentification pour l'enregistrement: {e}")
+        raise HTTPException(status_code=503, detail="Erreur de communication avec le service d'authentification") # 503 Service Unavailable
+    except Exception as e:
+        logger.error(f"Erreur inattendue dans register_user (gateway): {type(e).__name__} - {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
 
 # --- Routes pour la gestion des clés API via le service d'authentification ---
 
