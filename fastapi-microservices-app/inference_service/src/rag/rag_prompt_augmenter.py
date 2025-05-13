@@ -2,19 +2,15 @@ from loguru import logger
 from .retriever import Retriever
 from .knowledge_base import KnowledgeBase # Nécessaire pour l'initialisation si on le fait ici
 
-# Constantes pour le formatage du prompt
-CONTEXT_PROMPT_TEMPLATE = """
-Contexte pertinent fourni :
+# Nouveau template de prompt final, plus directif
+FINAL_PROMPT_WITH_CONTEXT_TEMPLATE = """En te basant UNIQUEMENT sur le contexte suivant :
 ---
 {context}
 ---
-"""
+Réponds à la question ci-dessous. Si le contexte ne fournit pas la réponse, indique que l'information n'est pas disponible dans le document.
 
-AUGMENTED_PROMPT_TEMPLATE = """
-{context_prompt}
-Prompt original de l'utilisateur :
-{user_prompt}
-"""
+Question :
+{user_prompt}"""
 
 class RagPromptAugmenter:
     def __init__(self, retriever: Retriever):
@@ -23,34 +19,31 @@ class RagPromptAugmenter:
 
     def augment_prompt(self, user_prompt: str, top_k_retrieval: int = 3) -> str:
         """
-        Augmente le prompt de l'utilisateur avec le contexte récupéré de la base de connaissances.
+        Augmente le prompt de l'utilisateur avec le contexte récupéré de la base de connaissances,
+        en utilisant le FINAL_PROMPT_WITH_CONTEXT_TEMPLATE.
         """
         logger.info(f"Augmentation du prompt pour l'utilisateur: '{user_prompt}' avec top_k={top_k_retrieval}")
         
         if not user_prompt.strip():
-            logger.warning("Le prompt de l'utilisateur est vide. Retour du prompt original.")
-            return user_prompt
+            logger.warning("Le prompt de l'utilisateur est vide. Retour du prompt original (non recommandé pour ce template).")
+            return user_prompt 
 
         retrieved_contexts = self.retriever.search(query=user_prompt, top_k=top_k_retrieval)
 
         if not retrieved_contexts:
-            logger.info("Aucun contexte pertinent trouvé. Retour du prompt original.")
-            return user_prompt
-
-        # Formater le contexte récupéré
-        # Chaque élément dans retrieved_contexts est un tuple (distance, texte)
-        context_str = "\n".join([f"- {text}" for _, text in retrieved_contexts])
+            logger.info("Aucun contexte pertinent trouvé par le RAG interne. Construction d'un prompt sans contexte spécifique.")
+            context_str = "Aucune information contextuelle spécifique n'a été trouvée dans les documents pour cette question."
+        else:
+            # Formater le contexte récupéré
+            context_str = "\n".join([f"- {text}" for _, text in retrieved_contexts])
         
-        context_prompt_segment = CONTEXT_PROMPT_TEMPLATE.format(context=context_str)
-        
-        augmented_prompt = AUGMENTED_PROMPT_TEMPLATE.format(
-            context_prompt=context_prompt_segment,
+        final_prompt = FINAL_PROMPT_WITH_CONTEXT_TEMPLATE.format(
+            context=context_str,
             user_prompt=user_prompt
         )
         
-        logger.info("Prompt augmenté généré.")
-        # logger.debug(f"Prompt augmenté:\n{augmented_prompt}") # Peut être verbeux
-        return augmented_prompt
+        logger.info("Prompt final (avec ou sans contexte récupéré) généré.")
+        return final_prompt
 
 # Exemple d'utilisation (nécessite que KnowledgeBase et Retriever soient fonctionnels)
 if __name__ == '__main__':
