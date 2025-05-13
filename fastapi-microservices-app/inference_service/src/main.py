@@ -1,7 +1,11 @@
 from fastapi import FastAPI, Request
 from .routes.inference import router as inference_router
 # Changement ici : importer la nouvelle fonction de chargement
-from .utils.model_loader import load_model_and_tokenizer 
+from .utils.model_loader import load_model_and_tokenizer
+# Ajouts pour RAG
+from .rag.knowledge_base import KnowledgeBase
+from .rag.retriever import Retriever
+from .rag.rag_prompt_augmenter import RagPromptAugmenter
 import logging
 
 app = FastAPI()
@@ -31,6 +35,23 @@ async def startup_event():
         # Pour l'instant, nous laissons l'application démarrer, mais les requêtes d'inférence échoueront.
         app.state.model = None
         app.state.tokenizer = None
+
+    logger.info("Initialisation des composants RAG...")
+    try:
+        kb = KnowledgeBase() # Utilise les chemins par défaut définis dans knowledge_base.py
+        retriever = Retriever(knowledge_base=kb)
+        rag_augmenter = RagPromptAugmenter(retriever=retriever)
+        app.state.rag_augmenter = rag_augmenter
+        if kb.index and kb.index.ntotal > 0:
+            logger.info(f"Composants RAG initialisés. Base de connaissances chargée avec {kb.index.ntotal} documents/chunks.")
+        elif kb.index is not None: # L'index existe mais est vide
+             logger.info("Composants RAG initialisés, mais la base de connaissances est actuellement vide.")
+        else: # kb.index est None, problème d'initialisation de l'index
+            logger.warning("Composants RAG initialisés, mais l'index de la base de connaissances n'a pas pu être chargé ou créé.")
+        logger.info("Composants RAG initialisés et stockés dans app.state.")
+    except Exception as e:
+        logger.error(f"Erreur critique lors de l'initialisation des composants RAG: {e}", exc_info=True)
+        app.state.rag_augmenter = None
 
 @app.on_event("shutdown")
 async def shutdown_event():
