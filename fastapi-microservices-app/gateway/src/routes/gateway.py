@@ -200,7 +200,9 @@ async def generate_inference(request: Request, x_api_key: str | None = Header(No
         raise HTTPException(status_code=400, detail="Corps JSON invalide, vide ou malformé.")
 
     try:
-        async with httpx.AsyncClient() as client:
+        # Augmentation du timeout à 120 secondes pour cet appel
+        timeout_config = httpx.Timeout(120.0, connect=5.0)
+        async with httpx.AsyncClient(timeout=timeout_config) as client:
             # Préparer les en-têtes pour la requête au service d'inférence.
             # httpx définit Content-Type à application/json si le paramètre `json` est utilisé.
             # Le code original incluait Content-Type, donc nous le gardons pour la cohérence.
@@ -255,7 +257,9 @@ async def embed_texts(request: Request, x_api_key: str | None = Header(None)):
         raise HTTPException(status_code=400, detail="Corps JSON invalide, vide ou malformé.")
 
     try:
-        async with httpx.AsyncClient() as client:
+        # Augmentation du timeout à 120 secondes pour cet appel
+        timeout_config = httpx.Timeout(120.0, connect=5.0)
+        async with httpx.AsyncClient(timeout=timeout_config) as client:
             headers_for_post = {"X-API-Key": x_api_key, "Content-Type": "application/json"}
             
             logger.info(f"Redirection de la demande d'embedding vers {INFERENCE_SERVICE_URL}/embed avec le préfixe de clé: {x_api_key[:8]}...")
