@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from ..models.payload import InferenceRequest, InferenceResponse, EmbeddingRequestPayload, EmbeddingResponsePayload
 from ..utils.model_loader import predict, generate_embeddings
 from ..utils.security import validate_api_key, ValidatedUserData
-# Importer les templates de prompt depuis rag_prompt_augmenter ou les définir ici si nécessaire
-from ..rag.rag_prompt_augmenter import CONTEXT_PROMPT_TEMPLATE, AUGMENTED_PROMPT_TEMPLATE, FINAL_PROMPT_WITH_CONTEXT_TEMPLATE
+# Importer UNIQUEMENT le template de prompt nécessaire
+from ..rag.rag_prompt_augmenter import FINAL_PROMPT_WITH_CONTEXT_TEMPLATE
 import logging
 from typing import List
 
