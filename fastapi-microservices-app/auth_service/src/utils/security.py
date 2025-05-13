@@ -3,6 +3,8 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
 import logging
+import random
+import string
 
 # Imports ajoutés
 from fastapi import Depends, HTTPException, status
@@ -31,6 +33,7 @@ except Exception as e:
 SECRET_KEY = "your_secret_key"  # Change this to a secure random key
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+VERIFICATION_CODE_LENGTH = 6 # Longueur du code de vérification
 
 # Ajout de oauth2_scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token") # Relatif aux routes du auth_service
@@ -96,9 +99,14 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
         raise credentials_exception
     return user
 
+def generate_verification_code(length: int = VERIFICATION_CODE_LENGTH) -> str:
+    """Génère un code de vérification numérique aléatoire."""
+    return "".join(random.choices(string.digits, k=length))
+
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
-    # Actuellement, le modèle User n'a pas de champ is_active.
-    # Si vous l'ajoutez, décommentez et ajustez la logique ci-dessous.
-    # if not current_user.is_active:
-    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    # Mise à jour pour utiliser le champ is_verified que nous avons ajouté
+    # et potentiellement is_active si vous l'utilisez plus tard.
+    if not current_user.is_verified: # Ou `if not current_user.is_active or not current_user.is_verified:`
+        logger.warning(f"Tentative d'accès par l'utilisateur non vérifié/inactif: {current_user.email}")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Compte inactif ou non vérifié")
     return current_user
