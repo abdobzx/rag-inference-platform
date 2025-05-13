@@ -1,0 +1,3 @@
+Ceci est un document d'exemple pour la base de connaissances RAG.
+L'intelligence artificielle est un domaine en pleine expansion.
+Les modèles de langage à grande échelle (LLM) sont une composante clé de l'IA moderne.

@@ -1,0 +1,94 @@
+from loguru import logger
+from .retriever import Retriever
+from .knowledge_base import KnowledgeBase # Nécessaire pour l'initialisation si on le fait ici
+
+# Constantes pour le formatage du prompt
+CONTEXT_PROMPT_TEMPLATE = """
+Contexte pertinent fourni :
+---
+{context}
+---
+"""
+
+AUGMENTED_PROMPT_TEMPLATE = """
+{context_prompt}
+Prompt original de l'utilisateur :
+{user_prompt}
+"""
+
+class RagPromptAugmenter:
+    def __init__(self, retriever: Retriever):
+        logger.info("Initialisation du RagPromptAugmenter.")
+        self.retriever = retriever
+
+    def augment_prompt(self, user_prompt: str, top_k_retrieval: int = 3) -> str:
+        """
+        Augmente le prompt de l'utilisateur avec le contexte récupéré de la base de connaissances.
+        """
+        logger.info(f"Augmentation du prompt pour l'utilisateur: '{user_prompt}' avec top_k={top_k_retrieval}")
+        
+        if not user_prompt.strip():
+            logger.warning("Le prompt de l'utilisateur est vide. Retour du prompt original.")
+            return user_prompt
+
+        retrieved_contexts = self.retriever.search(query=user_prompt, top_k=top_k_retrieval)
+
+        if not retrieved_contexts:
+            logger.info("Aucun contexte pertinent trouvé. Retour du prompt original.")
+            return user_prompt
+
+        # Formater le contexte récupéré
+        # Chaque élément dans retrieved_contexts est un tuple (distance, texte)
+        context_str = "\n".join([f"- {text}" for _, text in retrieved_contexts])
+        
+        context_prompt_segment = CONTEXT_PROMPT_TEMPLATE.format(context=context_str)
+        
+        augmented_prompt = AUGMENTED_PROMPT_TEMPLATE.format(
+            context_prompt=context_prompt_segment,
+            user_prompt=user_prompt
+        )
+        
+        logger.info("Prompt augmenté généré.")
+        # logger.debug(f"Prompt augmenté:\n{augmented_prompt}") # Peut être verbeux
+        return augmented_prompt
+
+# Exemple d'utilisation (nécessite que KnowledgeBase et Retriever soient fonctionnels)
+if __name__ == '__main__':
+    logger.add("rag_prompt_augmenter.log")
+
+    # Configuration minimale pour le test (similaire à ce qui serait fait dans le service)
+    try:
+        # Assurez-vous que le chemin vers knowledge_data est correct ou que l'index existe déjà
+        # KNOWLEDGE_BASE_DIR_FOR_TEST = "../knowledge_data" # Ajustez si nécessaire
+        # INDEX_PATH_FOR_TEST = "./faiss_index.idx" # Ajustez si nécessaire
+        
+        # kb = KnowledgeBase(knowledge_dir=KNOWLEDGE_BASE_DIR_FOR_TEST, index_path=INDEX_PATH_FOR_TEST)
+        kb = KnowledgeBase() # Utilise les chemins par défaut définis dans knowledge_base.py
+        
+        if kb.index and kb.index.ntotal > 0:
+            retriever_instance = Retriever(knowledge_base=kb)
+            augmenter = RagPromptAugmenter(retriever=retriever_instance)
+
+            test_prompt = "Parle-moi des avancées en intelligence artificielle."
+            logger.info(f"Test avec le prompt: '{test_prompt}'")
+            
+            augmented = augmenter.augment_prompt(test_prompt)
+            
+            logger.info("--- Prompt Augmenté --- ")
+            print(augmented)
+            logger.info("--- Fin du Prompt Augmenté ---")
+
+            test_prompt_no_context = "Une question sur un sujet non présent dans les documents."
+            logger.info(f"Test avec le prompt: '{test_prompt_no_context}'")
+            augmented_no_context = augmenter.augment_prompt(test_prompt_no_context)
+            logger.info("--- Prompt Augmenté (sans contexte attendu) --- ")
+            print(augmented_no_context)
+            logger.info("--- Fin du Prompt Augmenté (sans contexte attendu) ---")
+
+        else:
+            logger.error("La base de connaissances est vide ou n'a pas pu être initialisée. Le test de RagPromptAugmenter ne peut pas continuer.")
+
+    except ImportError as e:
+        logger.error(f"Erreur d'importation lors de l'initialisation pour le test: {e}. Assurez-vous que les dépendances (faiss, sentence-transformers, loguru) sont installées et que les modules RAG sont accessibles.")
+    except Exception as e:
+        logger.error(f"Une erreur générale s'est produite lors du test: {e}", exc_info=True)
