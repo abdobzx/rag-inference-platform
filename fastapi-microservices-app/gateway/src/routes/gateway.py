@@ -141,10 +141,10 @@ async def generate_inference(request: Request, x_api_key: str | None = Header(No
             # Le code original incluait Content-Type, donc nous le gardons pour la cohérence.
             headers_for_post = {"X-API-Key": x_api_key, "Content-Type": "application/json"}
             
-            logger.info(f"Redirection de la demande d'inférence vers {INFERENCE_SERVICE_URL}/inference/generate avec le préfixe de clé: {x_api_key[:8]}...")
+            logger.info(f"Redirection de la demande d'inférence vers {INFERENCE_SERVICE_URL}/generate avec le préfixe de clé: {x_api_key[:8]}...")
             
             response = await client.post(
-                f"{INFERENCE_SERVICE_URL}/inference/generate", 
+                f"{INFERENCE_SERVICE_URL}/generate", 
                 json=payload, 
                 headers=headers_for_post
             )
