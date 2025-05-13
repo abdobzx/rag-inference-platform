@@ -30,12 +30,22 @@ const Navbar = () => {
               Accueil
             </NavLink>
             {accessToken ? (
-              <button
-                onClick={handleLogout}
-                className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Déconnexion
-              </button>
+              <>
+                <NavLink
+                  to="/api-docs"
+                  className={({ isActive }) =>
+                    `text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium ${isActive ? 'text-white bg-primary' : ''}`
+                  }
+                >
+                  Documentation API
+                </NavLink>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Déconnexion
+                </button>
+              </>
             ) : (
               <>
                 <NavLink 

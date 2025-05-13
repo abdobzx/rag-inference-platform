@@ -162,6 +162,30 @@ async def gateway_revoke_api_key(key_prefix: str, token: str = Depends(oauth2_sc
         logger.error(f"Erreur inattendue lors de la révocation de clé API via gateway: {e}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
 
+@router.get("/auth/info")
+async def get_auth_service_info(token: str = Depends(oauth2_scheme)):
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token}"}
+            logger.info(f"Redirection de la demande d'informations du service d'authentification vers {AUTH_SERVICE_URL}/")
+            response = await client.get(f"{AUTH_SERVICE_URL}/", headers=headers)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Erreur HTTP du service d'authentification lors de la récupération des informations: {e.response.status_code} - {e.response.text}")
+        detail = "Erreur du service d'authentification"
+        try:
+            detail = e.response.json()
+        except json.JSONDecodeError:
+            detail = e.response.text if e.response.text else detail
+        raise HTTPException(status_code=e.response.status_code, detail=detail)
+    except httpx.RequestError as e:
+        logger.error(f"Erreur de requête lors de la récupération des informations du service d'authentification: {e}")
+        raise HTTPException(status_code=503, detail="Erreur de communication avec le service d'authentification")
+    except Exception as e:
+        logger.error(f"Erreur inattendue dans get_auth_service_info: {type(e).__name__} - {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur dans le gateway")
+
 @router.post("/inference/generate")
 async def generate_inference(request: Request, x_api_key: str | None = Header(None)):
     if not x_api_key:
