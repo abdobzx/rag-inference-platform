@@ -13,7 +13,7 @@ from datetime import datetime, timedelta  # Ajout de datetime et timedelta
 logger = logging.getLogger(__name__)
 
 # Domaines email autorisés
-ALLOWED_EMAIL_DOMAIN = "@sothemalab.com"
+ALLOWED_EMAIL_DOMAIN = "@mysothemalab.com"  # Corrigé ici
 VERIFICATION_CODE_EXPIRE_MINUTES = 15
 
 class UserCreate(BaseModel):
