@@ -71,15 +71,18 @@ const RegisterPage = () => {
   const handleVerifyCodeSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccessMessage('');
+    setSuccessMessage(''); // Réinitialiser le message de succès au début
     setLoading(true);
 
     try {
       const response = await apiService.post('/auth/verify-email', { email, code: verificationCode });
       console.log('Verification successful:', response.data);
-      setSuccessMessage(response.data.message || 'Vérification réussie ! Vous pouvez maintenant vous connecter.');
-      alert('Inscription finalisée avec succès ! Vous allez être redirigé vers la page de connexion.');
-      navigate('/login');
+      // Message de succès affiché dans le composant, avant la redirection
+      setSuccessMessage('Inscription finalisée avec succès ! Vous allez être redirigé vers la page de connexion.');
+      
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000); // Rediriger après 2 secondes
     } catch (err) {
       console.error('Verification error:', err.response ? err.response.data : err.message);
       let errorMessage = 'Échec de la vérification du code.';
