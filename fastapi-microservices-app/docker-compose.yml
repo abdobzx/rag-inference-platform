@@ -32,6 +32,7 @@ services:
       - DATABASE_URL=postgresql://sothemaai:REDACTED_DEV_PASSWORD@postgres:5432/sothemaai
       - EMAIL_HOST_USER=abdobzx@gmail.com  # << REMPLACEZ CECI
       - EMAIL_HOST_PASSWORD=intw zznn ffqz ymzi # << REMPLACEZ CECI
+      - LOG_LEVEL=DEBUG # Ajout du niveau de log DEBUG
 
   inference_service:
     build:
