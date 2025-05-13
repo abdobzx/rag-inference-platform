@@ -50,7 +50,9 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ce nom d'utilisateur est déjà pris.")
 
     try:
+        logger.debug(f"Mot de passe fourni pour l'enregistrement de {user_data.email}: {user_data.password}") # DEBUG LOG
         hashed_password = security.hash_password(user_data.password)
+        logger.debug(f"Mot de passe haché pour {user_data.email}: {hashed_password}") # DEBUG LOG
         verification_code = security.generate_verification_code()
         verification_code_expires_at = datetime.utcnow() + timedelta(minutes=VERIFICATION_CODE_EXPIRE_MINUTES)
         
@@ -139,6 +141,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    logger.debug(f"Tentative de vérification du mot de passe pour {form_data.username}. MDP fourni: {form_data.password}, MDP haché en BDD: {user.hashed_password}") # DEBUG LOG
     if not security.verify_password(form_data.password, user.hashed_password):
         logger.warning(f"Tentative de connexion échouée: Mot de passe incorrect pour l'email {form_data.username}")
         raise HTTPException(
