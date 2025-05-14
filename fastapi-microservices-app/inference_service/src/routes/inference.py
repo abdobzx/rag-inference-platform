@@ -57,7 +57,7 @@ async def generate_inference(
             text_input=prompt_to_use, 
             model=model, 
             tokenizer=tokenizer, 
-            max_length=payload.max_length
+            max_length_request=payload.max_length # MODIFIÉ: max_length renommé en max_length_request
         )
         
         logger.info(f"Inférence réussie pour l'utilisateur {validated_data.user_id}. Entrée (après augmentation potentielle): {prompt_to_use[:100]}... Sortie: {generated_text[:100]}...")
