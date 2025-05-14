@@ -33,7 +33,14 @@ def load_model_and_tokenizer() -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
         logger.info(f"Tentative de chargement du tokenizer : {TOKENIZER_NAME}")
         tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAME)
         logger.info("Tokenizer chargé avec succès.")
-        logger.info(f"Tokenizer model_max_length: {tokenizer.model_max_length}")
+
+        # CORRECTION POUR model_max_length ABERRANT
+        if tokenizer.model_max_length is None or tokenizer.model_max_length > 1_000_000_000:  # Seuil très grand
+            corrected_max_length = 8192
+            logger.warning(f"tokenizer.model_max_length était {tokenizer.model_max_length}. Correction à {corrected_max_length}.")
+            tokenizer.model_max_length = corrected_max_length
+
+        logger.info(f"Tokenizer model_max_length (après correction potentielle): {tokenizer.model_max_length}")
         logger.info(f"Tokenizer padding_side: {tokenizer.padding_side}")
         logger.info(f"Tokenizer chat_template: {tokenizer.chat_template}")
 
@@ -109,19 +116,24 @@ def predict(text_input: str, max_length_request: int, model: PreTrainedModel, to
     device = model.device
 
     try:
-        resolved_max_length = min(int(max_length_request), tokenizer.model_max_length if tokenizer.model_max_length else 512)
-        logger.info(f"predict: text_input='{text_input[:100]}...', max_length_request={max_length_request}, resolved_max_length={resolved_max_length}")
+        tokenizer_max_len = tokenizer.model_max_length if tokenizer.model_max_length is not None else 4096
+        resolved_max_length_for_tokenizer = tokenizer_max_len
+        max_new_tokens = int(max_length_request)
+
+        logger.info(f"predict: text_input='{text_input[:100]}...', max_new_tokens (demandé pour la réponse)={max_new_tokens}, tokenizer_max_len_for_prompt={resolved_max_length_for_tokenizer}")
 
         inputs = tokenizer.encode_plus(
             text_input,
             return_tensors="pt",
             truncation=True, 
-            padding="max_length",
-            max_length=resolved_max_length,
+            padding="longest",
+            max_length=resolved_max_length_for_tokenizer, 
             add_special_tokens=True
         )
         input_ids = inputs["input_ids"].to(device)
         attention_mask = inputs["attention_mask"].to(device)
+        
+        current_prompt_length = input_ids.shape[1]
 
         if tokenizer.pad_token_id is None:
             pad_token_id = tokenizer.eos_token_id
@@ -131,35 +143,29 @@ def predict(text_input: str, max_length_request: int, model: PreTrainedModel, to
         output_sequences = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            max_length=input_ids.shape[1] + resolved_max_length,
+            max_new_tokens=max_new_tokens,
             num_return_sequences=1,
-            temperature=0.7,
-            top_k=50,
-            top_p=0.95,
-            do_sample=True,
+            temperature=0.7, 
+            top_k=50,        
+            top_p=0.95,      
+            do_sample=True,  
             pad_token_id=pad_token_id,
             eos_token_id=tokenizer.eos_token_id
         )
-
-        prompt_length = len(tokenizer.decode(input_ids[0], skip_special_tokens=True))
-        full_text = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
-        generated_text = full_text[prompt_length:]
-
-        if generated_text.strip().startswith("### Réponse:") or generated_text.strip().startswith("Réponse:"):
-            generated_text = generated_text.split(":", 1)[-1].strip()
         
-        logger.info(f"Texte généré (brut): '{output_sequences[0]}'")
-        logger.info(f"Texte généré (décodé complet): '{full_text}'")
-        logger.info(f"Texte généré (après suppression du prompt): '{generated_text}'")
+        generated_ids = output_sequences[0][input_ids.shape[-1]:]
+        generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+
+        logger.info(f"Texte généré (nouveaux tokens uniquement): '{generated_text}'")
         return generated_text.strip()
 
     except OverflowError as oe:
         logger.error(f"OverflowError lors de la tokenisation/génération : {oe}")
-        logger.error(f"Détails: text_input='{text_input[:100]}...', max_length_request={max_length_request}, resolved_max_length={resolved_max_length}")
+        logger.error(f"Détails: text_input='{text_input[:100]}...', max_new_tokens={max_new_tokens}, tokenizer_max_len_for_prompt={resolved_max_length_for_tokenizer}")
         return "Erreur OverflowError lors de la génération de la réponse."
     except Exception as e:
         logger.error(f"Erreur lors de la génération de texte : {e}")
         if 'input_ids' in locals():
             logger.error(f"Shape des input_ids: {input_ids.shape}")
-        logger.error(f"Max length pour la génération: {input_ids.shape[1] + resolved_max_length if 'input_ids' in locals() else 'N/A'}")
+        logger.error(f"Max new tokens pour la génération: {max_new_tokens if 'max_new_tokens' in locals() else 'N/A'}")
         return "Erreur lors de la génération de la réponse."
