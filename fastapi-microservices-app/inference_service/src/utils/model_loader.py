@@ -151,6 +151,8 @@ def predict(text_input: str, model: PreTrainedModel, tokenizer: PreTrainedTokeni
             logger.error("Input IDs sont vides après tokenisation et troncature. Impossible de générer du texte.")
             return "Erreur: Le prompt d'entrée est devenu vide après traitement."
 
+        logger.info(f"Shape des input_ids avant génération: {input_ids.shape}")
+
         # Ajuster les paramètres de génération si nécessaire pour le nouveau modèle
         output_sequences = model.generate(
             input_ids=input_ids,
@@ -159,16 +161,22 @@ def predict(text_input: str, model: PreTrainedModel, tokenizer: PreTrainedTokeni
             num_return_sequences=1,
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id,
-            no_repeat_ngram_size=2,
+            # no_repeat_ngram_size=2, # Temporairement commenté pour test
             do_sample=True,
-            temperature=0.7, # Ajout/Ajustement de la température
+            temperature=0.75, # Légère augmentation pour voir si ça débloque
             top_k=50,
             top_p=0.95
         )
         
+        logger.info(f"Output sequences (brut) from model.generate: {output_sequences}") # Log des séquences de sortie brutes
+
         # Décoder la sortie. Pour certains modèles, il faut décoder uniquement les tokens générés.
         # La séquence de sortie contient les tokens d'entrée + les tokens générés.
         generated_ids = output_sequences[0][input_ids.shape[-1]:]
+        
+        logger.info(f"Generated IDs (après slicing du prompt): {generated_ids}") # Log des IDs générés
+        logger.info(f"Nombre de generated IDs: {len(generated_ids)}")
+
         generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
         
         logger.info(f"Texte généré (brut): {generated_text[:200]}...")
