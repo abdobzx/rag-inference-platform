@@ -13,51 +13,59 @@ _model: PreTrainedModel | None = None
 _tokenizer: PreTrainedTokenizer | None = None
 _embedding_model: SentenceTransformer | None = None
 
-# Changer le nom du modèle par défaut ici
-DEFAULT_MODEL_NAME = "deepseek-ai/deepseek-coder-1.3b-instruct"
-DEFAULT_EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+# Configuration du modèle et du tokenizer (MODIFIABLE)
+# Ancien modèle: deepseek-ai/deepseek-coder-1.3b-instruct
+MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2" 
+TOKENIZER_NAME = "mistralai/Mistral-7B-Instruct-v0.2"
 
-def load_model_and_tokenizer(model_name: str = DEFAULT_MODEL_NAME) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
-    """
-    Charge un modèle de langage causal et son tokenizer associé depuis Hugging Face.
-    Utilise des variables globales pour stocker le modèle et le tokenizer une fois chargés.
-    """
+# Modèle d'embedding (MODIFIABLE SI NÉCESSAIRE)
+# Ancien modèle: sentence-transformers/all-MiniLM-L6-v2
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
+def load_model_and_tokenizer() -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
+    """Charge le modèle LLM et le tokenizer."""
     global _model, _tokenizer
     if _model is not None and _tokenizer is not None:
-        logger.info(f"Modèle '{model_name}' et tokenizer déjà chargés.")
+        logger.info(f"Modèle '{MODEL_NAME}' et tokenizer déjà chargés.")
         return _model, _tokenizer
 
     try:
-        logger.info(f"Chargement du modèle '{model_name}'...")
-        # Déterminer le périphérique à utiliser (GPU si disponible, sinon CPU)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        logger.info(f"Utilisation du périphérique : {device}")
+        logger.info(f"Tentative de chargement du tokenizer : {TOKENIZER_NAME}")
+        # Ajout de trust_remote_code=True si nécessaire pour certains modèles, mais pas typiquement pour Mistral
+        tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAME)
+        logger.info("Tokenizer chargé avec succès.")
 
-        model = AutoModelForCausalLM.from_pretrained(model_name)
-        model.to(device) # Déplacer le modèle vers le périphérique sélectionné
-        model.eval() # Mettre le modèle en mode évaluation (important pour certains modèles comme ceux avec dropout)
+        logger.info(f"Tentative de chargement du modèle : {MODEL_NAME}")
+        # Pour les modèles plus grands, device_map="auto" est recommandé.
+        # Assurez-vous que 'accelerate' est installé.
+        model = AutoModelForCausalLM.from_pretrained(
+            MODEL_NAME, 
+            trust_remote_code=True, # Certains modèles peuvent le nécessiter
+            device_map="auto", # Répartit le modèle sur les GPU disponibles / CPU si pas de GPU ou pas assez de VRAM
+            torch_dtype=torch.bfloat16 # Utilise bfloat16 pour économiser de la mémoire et potentiellement accélérer si supporté
+        )
+        logger.info(f"Modèle LLM chargé avec succès sur le device : {model.device}")
         
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        # S'assurer que le pad_token est défini pour le tokenizer, essentiel pour le padding.
-        # Pour les modèles GPT-like, le token EOS (End Of Sentence) est souvent utilisé comme token de padding.
-        if tokenizer.pad_token is None:
-            tokenizer.pad_token = tokenizer.eos_token
-            logger.info(f"Token de padding non défini. Utilisation de eos_token ('{tokenizer.eos_token}') comme token de padding.")
-        
-        # Ajout pour certains modèles qui n'ont pas de pad_token_id explicite mais ont un eos_token_id
-        if tokenizer.pad_token_id is None and tokenizer.eos_token_id is not None:
-            tokenizer.pad_token_id = tokenizer.eos_token_id
-            logger.info(f"pad_token_id non défini. Utilisation de eos_token_id ('{tokenizer.eos_token_id}') comme pad_token_id.")
+        # Gestion du pad_token_id si non défini (courant pour les modèles Llama et Mistral)
+        if tokenizer.pad_token_id is None:
+            if tokenizer.eos_token_id is not None:
+                logger.info("tokenizer.pad_token_id non défini. Utilisation de tokenizer.eos_token_id comme pad_token_id.")
+                tokenizer.pad_token_id = tokenizer.eos_token_id
+            else:
+                # Si eos_token_id n'est pas non plus défini, ajoutez un nouveau pad_token.
+                # Cela est moins courant pour les modèles pré-entraînés bien configurés.
+                logger.warning("tokenizer.pad_token_id et tokenizer.eos_token_id non définis. Ajout d'un nouveau pad_token.")
+                tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+                model.resize_token_embeddings(len(tokenizer)) # Redimensionner les embeddings du modèle
 
         _model = model
         _tokenizer = tokenizer
-        logger.info(f"Modèle '{model_name}' et tokenizer chargés avec succès sur {device}.")
         return model, tokenizer
     except Exception as e:
-        logger.error(f"Erreur lors du chargement du modèle '{model_name}' ou du tokenizer: {e}", exc_info=True)
+        logger.error(f"Erreur lors du chargement du modèle '{MODEL_NAME}' ou du tokenizer: {e}", exc_info=True)
         raise  # Relancer l'exception pour que l'application FastAPI puisse la gérer
 
-def load_embedding_model(model_name: str = DEFAULT_EMBEDDING_MODEL_NAME) -> SentenceTransformer:
+def load_embedding_model(model_name: str = EMBEDDING_MODEL_NAME) -> SentenceTransformer:
     """
     Charge un modèle de sentence-transformer depuis Hugging Face.
     Utilise une variable globale pour stocker le modèle une fois chargé.
@@ -104,14 +112,6 @@ def predict(text_input: str, model: PreTrainedModel, tokenizer: PreTrainedTokeni
     Génère du texte en utilisant le modèle et le tokenizer chargés.
     """
     try:
-        # Pour les modèles de type "instruct", il est souvent utile de formater le prompt.
-        # Deepseek Instruct utilise un format spécifique, mais pour un usage général avec RAG,
-        # nous allons d'abord essayer sans formatage spécifique complexe autre que celui du RAG.
-        # Si les résultats sont mauvais, nous pourrions avoir besoin d'ajouter un template de prompt ici.
-        # Exemple de template pour Deepseek Instruct (à adapter si nécessaire) :
-        # formatted_prompt = f"### Instruction:\\n{text_input}\\n### Response:\\n"
-        # Pour l'instant, nous utilisons text_input directement, qui sera le prompt augmenté par RAG.
-        
         logger.info(f"Génération de texte pour l'entrée : '{text_input[:200]}...'") # Afficher un peu plus du prompt
         
         # Récupérer le périphérique sur lequel le modèle est chargé
@@ -126,12 +126,7 @@ def predict(text_input: str, model: PreTrainedModel, tokenizer: PreTrainedTokeni
 
         if max_input_length <= 0:
             logger.warning(f"max_new_tokens ({max_length}) est trop grand par rapport à model_max_length ({model_max_len}). Le prompt sera fortement tronqué ou vide. Ajustement de max_input_length.")
-            # Fallback : allouer au moins un peu d'espace pour le prompt, par exemple la moitié de model_max_len
-            # et ajuster max_length (max_new_tokens) en conséquence si on veut être strict.
-            # Pour l'instant, on va juste s'assurer que max_input_length est positif.
             max_input_length = model_max_len // 2 
-            # Idéalement, il faudrait aussi réduire 'max_length' (new_tokens) ou retourner une erreur.
-            # logger.warning(f"Le prompt sera tronqué à {max_input_length}. Le nombre de tokens générés pourrait être affecté.")
 
         # Tokeniser l'entrée
         inputs = tokenizer.encode_plus(
@@ -161,9 +156,8 @@ def predict(text_input: str, model: PreTrainedModel, tokenizer: PreTrainedTokeni
             num_return_sequences=1,
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id,
-            # no_repeat_ngram_size=2, # Temporairement commenté pour test
             do_sample=True,
-            temperature=0.75, # Légère augmentation pour voir si ça débloque
+            temperature=0.75,
             top_k=50,
             top_p=0.95
         )
@@ -181,12 +175,8 @@ def predict(text_input: str, model: PreTrainedModel, tokenizer: PreTrainedTokeni
         
         logger.info(f"Texte généré (brut): {generated_text[:200]}...")
 
-        # Le post-traitement pour enlever le prompt d'entrée n'est plus nécessaire
-        # si on décode uniquement les `generated_ids`.
-        
         return generated_text.strip()
 
     except Exception as e:
         logger.error(f"Erreur lors de la génération de texte : {e}", exc_info=True)
-        # Retourner une chaîne d'erreur ou relancer l'exception selon la politique de gestion des erreurs souhaitée.
         return "Erreur lors de la génération de la réponse."
