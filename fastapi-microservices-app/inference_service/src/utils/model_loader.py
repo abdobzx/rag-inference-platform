@@ -117,18 +117,39 @@ def predict(text_input: str, model: PreTrainedModel, tokenizer: PreTrainedTokeni
         # Récupérer le périphérique sur lequel le modèle est chargé
         device = model.device
 
+        # Déterminer la longueur maximale pour l'encodage du prompt
+        # en tenant compte des nouveaux tokens à générer.
+        # Utiliser une valeur sûre si tokenizer.model_max_length n'est pas défini.
+        model_max_len = tokenizer.model_max_length if tokenizer.model_max_length else 2048
+        # max_length ici est le nombre de nouveaux tokens que l'on veut générer (anciennement max_new_tokens)
+        max_input_length = model_max_len - max_length 
+
+        if max_input_length <= 0:
+            logger.warning(f"max_new_tokens ({max_length}) est trop grand par rapport à model_max_length ({model_max_len}). Le prompt sera fortement tronqué ou vide. Ajustement de max_input_length.")
+            # Fallback : allouer au moins un peu d'espace pour le prompt, par exemple la moitié de model_max_len
+            # et ajuster max_length (max_new_tokens) en conséquence si on veut être strict.
+            # Pour l'instant, on va juste s'assurer que max_input_length est positif.
+            max_input_length = model_max_len // 2 
+            # Idéalement, il faudrait aussi réduire 'max_length' (new_tokens) ou retourner une erreur.
+            # logger.warning(f"Le prompt sera tronqué à {max_input_length}. Le nombre de tokens générés pourrait être affecté.")
+
         # Tokeniser l'entrée
         inputs = tokenizer.encode_plus(
             text_input, 
             return_tensors="pt", 
             padding=True, 
             truncation=True,
-            max_length=tokenizer.model_max_length if tokenizer.model_max_length else 2048 # Assurer une valeur par défaut si model_max_length est None
+            max_length=max_input_length # Utiliser la longueur d'entrée calculée
         )
         
         # Déplacer les tenseurs d'entrée vers le même périphérique que le modèle
         input_ids = inputs["input_ids"].to(device)
         attention_mask = inputs["attention_mask"].to(device)
+
+        # S'assurer que input_ids n'est pas vide après troncature
+        if input_ids.shape[-1] == 0:
+            logger.error("Input IDs sont vides après tokenisation et troncature. Impossible de générer du texte.")
+            return "Erreur: Le prompt d'entrée est devenu vide après traitement."
 
         # Ajuster les paramètres de génération si nécessaire pour le nouveau modèle
         output_sequences = model.generate(
