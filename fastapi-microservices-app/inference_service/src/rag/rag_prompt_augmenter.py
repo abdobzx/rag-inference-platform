@@ -3,14 +3,27 @@ from .retriever import Retriever
 from .knowledge_base import KnowledgeBase # Nécessaire pour l'initialisation si on le fait ici
 
 # Nouveau template de prompt final, plus directif
-FINAL_PROMPT_WITH_CONTEXT_TEMPLATE = """En te basant UNIQUEMENT sur le contexte suivant :
----
-{context}
----
-Réponds à la question ci-dessous. Si le contexte ne fournit pas la réponse, indique que l'information n'est pas disponible dans le document.
+# FINAL_PROMPT_WITH_CONTEXT_TEMPLATE = """En te basant UNIQUEMENT sur le contexte suivant :
+# ---
+# {context}
+# ---
+# Réponds à la question ci-dessous. Si le contexte ne fournit pas la réponse, indique que l'information n'est pas disponible dans le document.
 
-Question :
-{user_prompt}"""
+# Question :
+# {user_prompt}"""
+
+# Modèle de prompt alternatif pour les modèles "instruct"
+FINAL_PROMPT_WITH_CONTEXT_TEMPLATE = """### Instruction:
+Répondez à la question en vous basant uniquement sur le contexte fourni. Si l'information n'est pas dans le contexte, dites que vous ne pouvez pas répondre à partir des documents fournis.
+
+### Contexte:
+{context}
+
+### Question:
+{user_prompt}
+
+### Réponse:
+"""
 
 class RagPromptAugmenter:
     def __init__(self, retriever: Retriever):
