@@ -38,6 +38,8 @@ services:
     build:
       context: ./inference_service
       dockerfile: Dockerfile
+    env_file:  # Ajout pour lire les variables d'environnement
+      - .env   # Chemin vers le fichier .env
     ports:
       - "8002:8001" 
     deploy: # Ajout pour l'accès au GPU
