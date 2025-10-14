@@ -17,14 +17,17 @@ from .error_handlers import (
     add_request_id
 )
 from .middleware.rate_limit import RateLimitMiddleware, rate_limiter
-import logging
+import sys
+import os
 
-# Configuration du logger
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Add shared_utils to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from shared_utils.logging_utils import get_logger
+from shared_utils.middleware.logging_middleware import LoggingMiddleware
+
+# Initialize structured logger
+logger = get_logger("auth_service")
 
 app = FastAPI(
     title="SothemaAI Authentication Service",
@@ -70,6 +73,7 @@ This service handles user authentication, authorization, and API key management 
 
 # Add middleware
 app.middleware("http")(add_request_id)
+app.add_middleware(LoggingMiddleware, service_name="auth_service")
 app.add_middleware(RateLimitMiddleware, rate_limiter=rate_limiter)
 
 # Add exception handlers
