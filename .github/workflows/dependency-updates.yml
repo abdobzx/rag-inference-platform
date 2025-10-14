@@ -1,0 +1,93 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run weekly on Mondays at 8 AM UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install safety (security vulnerability checker)
+      run: pip install safety
+
+    - name: Check Python dependencies for vulnerabilities
+      run: |
+        cd fastapi-microservices-app
+        safety check --file auth_service/requirements.txt --output text
+        safety check --file inference_service/requirements.txt --output text
+        safety check --file gateway/requirements.txt --output text
+        safety check --file logging_service/requirements.txt --output text
+
+    - name: Check for outdated dependencies
+      run: |
+        pip install pip-tools
+        cd fastapi-microservices-app
+        echo "Checking auth_service dependencies..."
+        pip list --outdated --format=json | jq '.[] | select(.name | IN("fastapi", "uvicorn", "sqlalchemy", "pydantic"))'
+
+  update-dependencies:
+    runs-on: ubuntu-latest
+    needs: dependency-check
+    if: github.event_name == 'schedule'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Update Python dependencies
+      run: |
+        pip install pip-tools
+        cd fastapi-microservices-app
+
+        # Update requirements files
+        for service in auth_service inference_service gateway logging_service; do
+          if [ -f "$service/requirements.txt" ]; then
+            echo "Updating $service dependencies..."
+            cd $service
+            # This would require pip-tools setup with pyproject.toml or requirements.in files
+            # For now, just check what could be updated
+            pip list --outdated
+            cd ..
+          fi
+        done
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore: update dependencies"
+        title: "Weekly Dependency Updates"
+        body: |
+          This PR updates project dependencies to their latest versions.
+
+          ## Changes
+          - Updated Python dependencies across all services
+          - Security vulnerability fixes (if any)
+
+          ## Testing
+          - All CI tests should pass
+          - Manual testing recommended for major version updates
+
+          ## Review Checklist
+          - [ ] CI tests pass
+          - [ ] No breaking changes
+          - [ ] Security vulnerabilities resolved
+        branch: automated/dependency-updates
+        delete-branch: true

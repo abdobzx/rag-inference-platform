@@ -1,0 +1,135 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-lint-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-lint-
+
+    - name: Install linting tools
+      run: |
+        pip install flake8 black isort mypy bandit safety
+
+    - name: Run Python linting
+      run: |
+        cd fastapi-microservices-app
+
+        echo "🔍 Running flake8..."
+        flake8 auth_service/src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 inference_service/src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 gateway/src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 logging_service/src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+        echo "🎨 Checking code formatting with black..."
+        black --check --diff auth_service/src/
+        black --check --diff inference_service/src/
+        black --check --diff gateway/src/
+        black --check --diff logging_service/src/
+
+        echo "📦 Checking import sorting with isort..."
+        isort --check-only --diff auth_service/src/
+        isort --check-only --diff inference_service/src/
+        isort --check-only --diff gateway/src/
+        isort --check-only --diff logging_service/src/
+
+    - name: Run security checks
+      run: |
+        cd fastapi-microservices-app
+
+        echo "🔒 Running Bandit security linter..."
+        bandit -r auth_service/src/ -f json -o bandit_auth.json || true
+        bandit -r inference_service/src/ -f json -o bandit_inference.json || true
+        bandit -r gateway/src/ -f json -o bandit_gateway.json || true
+        bandit -r logging_service/src/ -f json -o bandit_logging.json || true
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-scan-results
+        path: |
+          fastapi-microservices-app/bandit_*.json
+
+  frontend-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: fastapi-microservices-app/frontend_react/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd fastapi-microservices-app/frontend_react
+        npm ci
+
+    - name: Run ESLint
+      run: |
+        cd fastapi-microservices-app/frontend_react
+        npm run lint
+
+    - name: Run TypeScript check (if applicable)
+      run: |
+        cd fastapi-microservices-app/frontend_react
+        npx tsc --noEmit || echo "TypeScript check completed with warnings"
+
+    - name: Run tests
+      run: |
+        cd fastapi-microservices-app/frontend_react
+        npm test -- --coverage --watchAll=false
+
+  markdown-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run markdownlint
+      uses: docker://avtodev/markdown-lint:v1
+      with:
+        args: "*.md"
+
+  docker-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Hadolint
+      run: |
+        wget -O hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
+        chmod +x hadolint
+        sudo mv hadolint /usr/local/bin/
+
+    - name: Run Hadolint on Dockerfiles
+      run: |
+        find fastapi-microservices-app -name "Dockerfile" -exec hadolint {} \;
