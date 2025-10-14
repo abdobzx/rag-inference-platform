@@ -1,285 +1,524 @@
-# FastAPI Microservices Application for LLM Inference
+# SothemaAI - Production-Ready LLM Inference Platform
 
-**Statut du Projet : En développement actif** (Privé)
-**Date de dernière mise à jour : 13 Mai 2025**
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com)
+[![Python](https://img.shields.io/badge/Python-3.9+-blue)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18+-blue)](https://reactjs.org)
 
-## Table des Matières
+**Production Status**: MVP Complete - Ready for Production Deployment
 
-1. [Introduction](#introduction)
-2. [Architecture](#architecture)
-3. [Services](#services)
-    * [Auth Service](#auth-service)
-    * [Inference Service](#inference-service)
-    * [Logging Service](#logging-service)
-    * [Gateway Service](#gateway-service)
-    * [Frontend React](#frontend-react)
-    * [Nginx](#nginx)
-    * [PostgreSQL](#postgresql)
-4. [Fonctionnalités Clés](#fonctionnalités-clés)
-5. [Technologies Utilisées](#technologies-utilisées)
-6. [Prérequis](#prérequis)
-7. [Installation et Lancement](#installation-et-lancement)
-8. [Accès aux Services](#accès-aux-services)
-9. [Authentification](#authentification)
-    * [Authentification des Utilisateurs (JWT)](#authentification-des-utilisateurs-jwt)
-    * [Authentification des Services (Clé API)](#authentification-des-services-clé-api)
-10. [Utilisation du GPU](#utilisation-du-gpu)
-11. [Prochaines Étapes (Roadmap RAG)](#prochaines-étapes-roadmap-rag)
-12. [Considérations de Sécurité](#considérations-de-sécurité)
-13. [Scalabilité](#scalabilité)
-14. [Contribution](#contribution)
+> **🎓 PFE Internship Project** - This platform was designed and developed by [Abderrahman Benzaouia](https://github.com/abdobzx) as part of a Professional Internship (PFE) at Sothema. As the full-stack architect and designer, I conceptualized, designed, and implemented the entire platform from ground up, including system architecture, microservices design, UI/UX design, and production deployment strategy.
 
-## Introduction
+A comprehensive, production-ready AI inference platform built with microservices architecture, featuring user authentication, API key management, LLM inference with RAG capabilities, comprehensive logging, and a modern React frontend.
 
-Ce projet est une application web full-stack conçue pour fournir un accès à des modèles de langage open-source (LLM) via une architecture de microservices robuste et scalable. L'application permet aux utilisateurs de s'inscrire, de gérer des clés API personnelles, et d'utiliser ces clés pour accéder au service d'inférence LLM. Le backend est construit avec Python (FastAPI) et le frontend avec React (Vite, Tailwind CSS).
+## 🚀 Quick Start
 
-## Architecture
-
-L'application suit une architecture de microservices, orchestrée avec Docker Compose. Les principaux composants sont :
-
-```text
-+---------------------+     +---------------------+     +---------------------+
-|   Frontend React    |<--->|        Nginx        |<--->|   Gateway Service   |
-| (SPA - Vite)        |     |   (Reverse Proxy)   |     |    (FastAPI)      |
-+---------------------+     +---------------------+     +---------------------+
-                                                            |         ^
-                                                            |         | (API Calls)
-                                                            v         |
-+---------------------+     +---------------------+     +---------------------+
-|    Auth Service     |<--->|     PostgreSQL      |<--->|   Logging Service   |
-| (FastAPI, JWT,     |     |      (Database)     |     |      (FastAPI)      |
-|  API Key Mgmt)      |     +---------------------+     +---------------------+
-+---------------------+
-          ^
-          | (API Key Validation)
-          v
-+---------------------+
-|  Inference Service  |
-| (FastAPI, LLM, GPU) |
-+---------------------+
+```bash
+git clone <repository-url>
+cd SothemaAI
+cp fastapi-microservices-app/.env.*.example fastapi-microservices-app/
+# Edit environment files with your credentials
+docker-compose up --build
 ```
 
-*   **Nginx** : Sert de reverse proxy, dirigeant le trafic UI vers le frontend React et le trafic API vers le Gateway Service.
-*   **Frontend React**: Interface utilisateur single-page pour l'interaction avec l'application.
-*   **Gateway Service**: Point d'entrée unique pour toutes les requêtes API. Il route les requêtes vers les services internes appropriés (Auth, Inference, Logging).
-*   **Auth Service**: Gère l'authentification des utilisateurs (enregistrement, login via JWT) et la gestion des clés API (création, listage, révocation, validation).
-*   **Inference Service**: Exécute les inférences LLM. Il est protégé par une authentification basée sur les clés API validées par l'Auth Service. Il est configuré pour utiliser le GPU si disponible.
-*   **Logging Service**: (Prévu) Centralisera les logs de tous les services.
-*   **PostgreSQL**: Base de données relationnelle utilisée par l'Auth Service pour stocker les informations des utilisateurs et les clés API.
+Access the application at [http://localhost](http://localhost)
 
-## Services
+## 📋 Table of Contents
 
-### Auth Service
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Services](#-services)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+- [API Documentation](#-api-documentation)
+- [Development](#-development)
+- [Deployment](#-deployment)
+- [Monitoring](#-monitoring)
+- [Security](#-security)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-*   **Rôle**: Gestion des utilisateurs et des clés API.
-*   **Fonctionnalités**:
-    *   Enregistrement et connexion des utilisateurs (émission de tokens JWT).
-    *   Création, listage, révocation de clés API par les utilisateurs authentifiés.
-    *   Endpoint interne pour la validation des clés API par d'autres services (utilisé par l'Inference Service).
-*   **Technologies**: FastAPI, SQLAlchemy, PostgreSQL, JWT.
+## ✨ Features
 
-### Inference Service
+### Core Features
+- 🔐 **User Authentication** - JWT-based authentication with email verification
+- 🔑 **API Key Management** - Create, manage, and revoke API keys per user
+- 🤖 **LLM Inference** - GPU-accelerated inference with Hugging Face models
+- 📚 **RAG Support** - Retrieval Augmented Generation capabilities
+- 📊 **Comprehensive Logging** - Centralized logging across all services
+- 🌐 **Modern Frontend** - React SPA with Tailwind CSS
+- 🐳 **Containerized** - Full Docker orchestration with Docker Compose
 
-*   **Rôle**: Fournir des capacités d'inférence LLM.
-*   **Fonctionnalités**:
-    *   Endpoint `/generate` pour obtenir des complétions de texte à partir d'un prompt.
-    *   Protégé par une clé API (en-tête `X-API-Key`).
-    *   Charge un modèle LLM (actuellement `distilgpt2` via `transformers`).
-    *   Conçu pour utiliser le GPU de l'hôte via Docker.
-*   **Technologies**: FastAPI, Hugging Face Transformers, PyTorch.
+### Production Features
+- 🔒 **Security Hardened** - Input validation, CORS, rate limiting
+- 📈 **Monitoring Ready** - Health checks, metrics endpoints
+- 🔄 **Scalable Architecture** - Independent service scaling
+- 📝 **API Documentation** - Interactive OpenAPI/Swagger docs
+- 🧪 **Testing Suite** - Unit, integration, and E2E tests
+- 🚀 **CI/CD Ready** - GitHub Actions workflow templates
 
-### Logging Service
+## 🏗️ Architecture
 
-*   **Rôle**: (En cours de développement) Collecter et stocker les logs de manière centralisée.
-*   **Technologies**: FastAPI.
+```text
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   React SPA     │◄──►│     Nginx       │◄──►│   API Gateway   │
+│   (Frontend)    │    │  (Reverse Proxy)│    │   (FastAPI)     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                                       │
+                                                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Auth Service   │◄──►│   PostgreSQL    │◄──►│ Logging Service │
+│  (JWT + API)    │    │   (Database)    │    │   (FastAPI)     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│Inference Service│
+│ (LLM + RAG)     │
+│   (FastAPI)     │
+└─────────────────┘
+```
 
-### Gateway Service
+### Service Overview
 
-*   **Rôle**: Point d'entrée unique et routeur pour les requêtes API.
-*   **Fonctionnalités**:
-    *   Redirige les requêtes `/auth/*` et `/token` vers l'Auth Service.
-    *   Redirige les requêtes `/inference/*` vers l'Inference Service, en propageant la clé API.
-    *   (Prévu) Redirige les requêtes `/logs` vers le Logging Service.
-*   **Technologies**: FastAPI, HTTPX.
+| Service | Technology | Port | Purpose |
+|---------|------------|------|---------|
+| **Frontend** | React + Vite | 80 | User interface |
+| **Nginx** | Nginx | 80 | Reverse proxy & static files |
+| **API Gateway** | FastAPI | 8000 | Request routing & authentication |
+| **Auth Service** | FastAPI | 8001 | User auth & API key management |
+| **Inference Service** | FastAPI | 8002 | LLM inference with GPU support |
+| **Logging Service** | FastAPI | 8003 | Centralized logging |
+| **PostgreSQL** | PostgreSQL | 5432 | Data persistence |
 
-### Frontend React
+## 📦 Prerequisites
 
-*   **Rôle**: Interface utilisateur.
-*   **Fonctionnalités**:
-    *   Pages d'accueil, de connexion, d'enregistrement.
-    *   Tableau de bord utilisateur pour la gestion des clés API (création, affichage, révocation).
-    *   Formulaire pour envoyer des requêtes au service d'inférence.
-*   **Technologies**: React, Vite, Tailwind CSS, Axios (ou `fetch`).
+### System Requirements
+- **Docker** 20.10+ and **Docker Compose** 2.0+
+- **Git** for repository cloning
+- **4GB+ RAM** recommended
+- **GPU** (optional but recommended for inference)
 
-### Nginx
+### Accounts & Tokens
+- **HuggingFace** account with access token (for LLM models)
+- **Gmail** account with app password (for email verification)
+- **Domain** (for production SSL certificates)
 
-*   **Rôle**: Reverse proxy et serveur web pour le frontend.
-*   **Fonctionnalités**:
-    *   Sert l'application React buildée statiquement.
-    *   Route les appels API (ex: `/api/...`) vers le Gateway Service.
-*   **Configuration**: `nginx/nginx.conf`
+## 🛠️ Installation
 
-### PostgreSQL
-
-*   **Rôle**: Base de données persistante.
-*   **Utilisation**: Stocke les utilisateurs, les mots de passe hashés, et les clés API.
-*   **Accès**: Principalement utilisé par l'Auth Service.
-
-## Fonctionnalités Clés
-
-*   Architecture microservices avec Docker.
-*   Authentification des utilisateurs basée sur JWT.
-*   Gestion complète des clés API par utilisateur.
-*   Authentification par clé API pour l'accès au service d'inférence.
-*   Service d'inférence LLM avec support GPU.
-*   Frontend React moderne pour l'interaction utilisateur.
-
-## Technologies Utilisées
-
-*   **Backend**: Python, FastAPI, SQLAlchemy, Pydantic, Uvicorn
-*   **Frontend**: JavaScript, React, Vite, Tailwind CSS
-*   **Base de données**: PostgreSQL
-*   **Modèles LLM**: Hugging Face Transformers, PyTorch
-*   **Conteneurisation & Orchestration**: Docker, Docker Compose
-*   **Reverse Proxy**: Nginx
-*   **Communication Inter-services**: HTTPX
-*   **Authentification**: JWT (JSON Web Tokens), API Keys
-
-## Prérequis
-
-Avant de lancer l'application, assurez-vous d'avoir :
-
-- **Docker** et **Docker Compose** installés
-- **Git** pour cloner le repository
-- Un compte **HuggingFace** avec un token d'accès (pour les modèles d'IA)
-- Un compte **Gmail** avec un mot de passe d'application (pour les emails de vérification)
-
-## Installation et Lancement
-
-### 1. Cloner le repository
-
+### 1. Clone Repository
 ```bash
 git clone <repository-url>
 cd SothemaAI/fastapi-microservices-app
 ```
 
-### 2. Configuration des variables d'environnement
-
-Copiez les fichiers d'exemple d'environnement et configurez vos credentials :
-
+### 2. Environment Setup
 ```bash
-# Auth Service
+# Copy environment templates
 cp .env.auth.example .env.auth
-# Éditez .env.auth avec vos vraies credentials
-
-# Inference Service
 cp .env.inference.example .env.inference
-# Éditez .env.inference avec votre token HuggingFace
-
-# Gateway Service
 cp .env.gateway.example .env.gateway
-
-# Frontend
 cp .env.frontend.example .env.frontend
+
+# Edit with your credentials (see Configuration section)
 ```
 
-**Variables importantes à configurer :**
-
-- **`.env.auth`** : `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `JWT_SECRET_KEY`
-- **`.env.inference`** : `HUGGING_FACE_HUB_TOKEN`
-- **`.env.gateway`** : URLs des services (généralement pas besoin de modifier)
-- **`.env.frontend`** : URLs des API (généralement pas besoin de modifier)
-
-### 3. Lancement de l'application
-
+### 3. Launch Application
 ```bash
+# Build and start all services
+docker-compose up --build
+
+# Or run in background
+docker-compose up -d --build
+```
+
+### 4. Verify Installation
+```bash
+# Check service health
+curl http://localhost/api/health
+
+# Access frontend
+open http://localhost
+
+# View API documentation
+open http://localhost/api/docs
+```
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+#### Auth Service (.env.auth)
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@postgres:5432/sothema_db
+
+# JWT
+JWT_SECRET_KEY=your-super-secret-jwt-key-here
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Email
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+EMAIL_FROM=your-email@gmail.com
+
+# Security
+SECRET_KEY=your-secret-key-here
+BCRYPT_ROUNDS=12
+```
+
+#### Inference Service (.env.inference)
+```bash
+# HuggingFace
+HUGGING_FACE_HUB_TOKEN=your-hf-token-here
+
+# Model Configuration
+MODEL_NAME=microsoft/DialoGPT-medium
+MAX_NEW_TOKENS=100
+TEMPERATURE=0.7
+
+# GPU Settings
+CUDA_VISIBLE_DEVICES=0
+TORCH_USE_CUDA_DSA=1
+```
+
+#### Gateway Service (.env.gateway)
+```bash
+# Service URLs
+AUTH_SERVICE_URL=http://auth_service:8000
+INFERENCE_SERVICE_URL=http://inference_service:8001
+LOGGING_SERVICE_URL=http://logging_service:8002
+
+# Security
+SECRET_KEY=your-gateway-secret-key
+```
+
+#### Frontend (.env.frontend)
+```bash
+# API Configuration
+VITE_API_BASE_URL=http://localhost/api
+VITE_APP_NAME=SothemaAI
+VITE_APP_VERSION=1.0.0
+```
+
+### Database Initialization
+```bash
+# Run database migrations (when implemented)
+docker-compose exec auth_service alembic upgrade head
+
+# Or use the current init script
+docker-compose exec postgres bash /docker-entrypoint-initdb.d/init-db.sh
+```
+
+## 🚀 Usage
+
+### User Registration & Authentication
+1. Visit [http://localhost](http://localhost)
+2. Click "Register" and create an account
+3. Check your email for verification code
+4. Login with your credentials
+5. Generate API keys from your dashboard
+
+### API Usage Examples
+
+#### Get Authentication Token
+```bash
+curl -X POST "http://localhost/api/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=your-email@example.com&password=your-password"
+```
+
+#### Generate Text with LLM
+```bash
+curl -X POST "http://localhost/api/inference/generate" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
+  -d '{"prompt": "Hello, how are you?", "max_tokens": 50}'
+```
+
+#### Manage API Keys
+```bash
+# List your API keys
+curl -X GET "http://localhost/api/auth/apikeys" \
+  -H "Authorization: Bearer your-jwt-token"
+
+# Create new API key
+curl -X POST "http://localhost/api/auth/apikeys" \
+  -H "Authorization: Bearer your-jwt-token" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My API Key", "permissions": ["inference"]}'
+```
+
+## 📚 API Documentation
+
+### Interactive Documentation
+- **Swagger UI**: [http://localhost/api/docs](http://localhost/api/docs)
+- **ReDoc**: [http://localhost/api/redoc](http://localhost/api/redoc)
+- **OpenAPI Schema**: [http://localhost/api/openapi.json](http://localhost/api/openapi.json)
+
+### Service-Specific Docs
+- **Auth Service**: [http://localhost:8001/docs](http://localhost:8001/docs)
+- **Inference Service**: [http://localhost:8002/docs](http://localhost:8002/docs)
+- **Logging Service**: [http://localhost:8003/docs](http://localhost:8003/docs)
+
+### Postman Collection
+Import the Postman collection from `docs/SothemaAI.postman_collection.json` for comprehensive API testing.
+
+## 💻 Development
+
+### Local Development Setup
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install Node.js dependencies
+cd frontend_react && npm install
+
+# Run services individually for development
+# Auth Service
+cd auth_service && python -m uvicorn src.main:app --reload --port 8001
+
+# Inference Service
+cd inference_service && python -m uvicorn src.main:app --reload --port 8002
+
+# Frontend
+cd frontend_react && npm run dev
+```
+
+### Testing
+```bash
+# Run all tests
+docker-compose exec auth_service pytest
+docker-compose exec inference_service pytest
+
+# Run frontend tests
+cd frontend_react && npm test
+
+# Run integration tests
+docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+```
+
+### Code Quality
+```bash
+# Lint Python code
+docker-compose exec auth_service flake8 src/
+docker-compose exec auth_service black src/
+
+# Lint JavaScript/React code
+cd frontend_react && npm run lint
+```
+
+## 🚢 Deployment
+
+### Production Deployment
+```bash
+# Build for production
+docker-compose -f docker-compose.prod.yml build
+
+# Deploy with SSL
+docker-compose -f docker-compose.prod.yml up -d
+
+# Scale services as needed
+docker-compose up -d --scale inference_service=3
+```
+
+### Environment-Specific Configurations
+- **Development**: `docker-compose.yml`
+- **Production**: `docker-compose.prod.yml`
+- **Testing**: `docker-compose.test.yml`
+
+### SSL/TLS Setup (Production)
+```bash
+# Install certbot for Let's Encrypt
+sudo apt-get install certbot
+
+# Generate SSL certificates
+sudo certbot certonly --standalone -d yourdomain.com
+
+# Configure nginx for SSL (see nginx/nginx.prod.conf)
+```
+
+## 📊 Monitoring
+
+### Health Checks
+```bash
+# Overall system health
+curl http://localhost/api/health
+
+# Individual service health
+curl http://localhost/api/health/auth
+curl http://localhost/api/health/inference
+curl http://localhost/api/health/logging
+```
+
+### Metrics Endpoints
+```bash
+# Prometheus metrics (when implemented)
+curl http://localhost:9090/metrics
+
+# Service-specific metrics
+curl http://localhost:8001/metrics
+curl http://localhost:8002/metrics
+```
+
+### Logging
+```bash
+# View centralized logs
+docker-compose logs -f logging_service
+
+# View specific service logs
+docker-compose logs -f auth_service
+```
+
+## 🔒 Security
+
+### Authentication & Authorization
+- JWT tokens with configurable expiration
+- API key-based service authentication
+- Role-based access control (RBAC) ready
+- Password hashing with bcrypt
+
+### Data Protection
+- Input validation with Pydantic
+- SQL injection prevention with SQLAlchemy
+- XSS protection in React frontend
+- CORS configuration
+
+### Production Security
+- SSL/TLS encryption (required in production)
+- Rate limiting on API endpoints
+- Security headers (HSTS, CSP, etc.)
+- Regular dependency updates
+
+### Security Checklist
+- [ ] SSL/TLS certificates configured
+- [ ] Secrets moved to environment variables
+- [ ] Database credentials rotated
+- [ ] Firewall rules configured
+- [ ] Regular security audits performed
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### Services Won't Start
+```bash
+# Check Docker logs
+docker-compose logs
+
+# Verify environment files
+ls -la .env.*
+
+# Check port conflicts
+netstat -tlnp | grep :80
+```
+
+#### Database Connection Issues
+```bash
+# Check PostgreSQL container
+docker-compose ps postgres
+
+# Verify database credentials
+docker-compose exec postgres psql -U sothema_user -d sothema_db
+
+# Reset database
+docker-compose down -v
+docker-compose up --build postgres
+```
+
+#### GPU Issues
+```bash
+# Verify GPU availability
+nvidia-smi
+
+# Check Docker GPU support
+docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
+```
+
+#### Email Issues
+```bash
+# Test email configuration
+docker-compose exec auth_service python -c "
+import smtplib
+server = smtplib.SMTP('smtp.gmail.com', 587)
+server.starttls()
+server.login('your-email@gmail.com', 'your-app-password')
+print('Email configuration OK')
+"
+```
+
+### Performance Issues
+```bash
+# Monitor resource usage
+docker stats
+
+# Check service logs for errors
+docker-compose logs --tail=100 auth_service
+
+# Profile inference performance
+curl -X POST "http://localhost/api/inference/generate" \
+  -H "X-API-Key: your-key" \
+  -d '{"prompt": "test", "benchmark": true}'
+```
+
+### Reset Everything
+```bash
+# Complete cleanup
+docker-compose down -v --remove-orphans
+docker system prune -a --volumes
+
+# Fresh start
 docker-compose up --build
 ```
 
-L'application sera accessible sur :
-- **Frontend** : http://localhost
-- **API Gateway** : http://localhost:8000
-- **Documentation API** : http://localhost:8000/docs
+## 🤝 Contributing
 
-### 4. Accès initial
+### Development Workflow
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make your changes and add tests
+4. Run the test suite: `docker-compose -f docker-compose.test.yml up`
+5. Commit your changes: `git commit -am 'Add your feature'`
+6. Push to the branch: `git push origin feature/your-feature`
+7. Submit a pull request
 
-1. Allez sur http://localhost
-2. Créez un compte utilisateur (doit être @mysothemalab.com)
-3. Vérifiez votre email pour le code de vérification
-4. Connectez-vous et générez une clé API
-5. Utilisez la clé API pour accéder aux fonctionnalités d'IA
+### Code Standards
+- **Python**: Follow PEP 8, use Black for formatting
+- **JavaScript**: Use ESLint, follow Airbnb style guide
+- **Documentation**: Update README and API docs for changes
+- **Testing**: Maintain >80% test coverage
 
-## Accès aux Services
+### Commit Guidelines
+- Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`
+- Keep commits atomic and descriptive
+- Reference issues in commit messages
 
-Une fois les conteneurs lancés :
+## 📄 License
 
-*   **Application Frontend**: `http://localhost` (ou `http://localhost:80` via Nginx)
-*   **Gateway API (via Nginx)**: `http://localhost/api/...` (par exemple, `http://localhost/api/token`, `http://localhost/api/inference/generate`)
-*   **Ports directs des services (principalement pour le débogage ou si Nginx n'est pas utilisé)**:
-    *   Gateway: `http://localhost:8000` (mappé sur le port 8080 du conteneur)
-    *   Auth Service: `http://localhost:8001` (mappé sur le port 8000 du conteneur)
-    *   Inference Service: `http://localhost:8002` (mappé sur le port 8001 du conteneur)
-    *   Logging Service: `http://localhost:8003` (mappé sur le port 8002 du conteneur)
-    *   PostgreSQL: `localhost:5432`
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Authentification
+## 🙏 Acknowledgments
 
-### Authentification des Utilisateurs (JWT)
+- **FastAPI** - Modern Python web framework
+- **React** - Frontend library
+- **Hugging Face** - LLM model hosting
+- **PostgreSQL** - Reliable database
+- **Docker** - Containerization platform
 
-*   Les utilisateurs s'inscrivent et se connectent via les endpoints `/auth/register` et `/token` (proxied par le Gateway).
-*   Lors d'une connexion réussie, l'Auth Service retourne un token JWT.
-*   Ce token JWT doit être inclus dans l'en-tête `Authorization: Bearer <token>` pour les routes protégées (ex: gestion des clés API).
+## 📞 Support
 
-### Authentification des Services (Clé API)
-
-*   Le service d'inférence (`/inference/generate`) est protégé par une clé API.
-*   Les utilisateurs génèrent leurs clés API via le frontend (qui appelle l'Auth Service).
-*   La clé API doit être fournie dans l'en-tête `X-API-Key` lors de l'appel à l'endpoint d'inférence.
-*   L'Inference Service valide cette clé en appelant un endpoint interne de l'Auth Service (`/internal/apikeys/validate`).
-
-## Utilisation du GPU
-
-*   L'`inference_service` est configuré dans `docker-compose.yml` pour demander l'accès à un GPU NVIDIA via la section `deploy.resources`.
-*   Le code de chargement du modèle dans `inference_service/src/utils/model_loader.py` détecte automatiquement la disponibilité de CUDA et déplace le modèle sur le GPU.
-*   **Prérequis Hôte**: NVIDIA Container Toolkit et pilotes NVIDIA à jour.
-
-## Prochaines Étapes (Roadmap RAG)
-
-L'objectif est d'étendre cette application pour supporter des fonctionnalités de Retrieval Augmented Generation (RAG). Cela impliquera :
-
-1.  **Mise en place d'une base de connaissances**:
-    *   Choix et intégration d'une base de données vectorielle (ex: FAISS, Milvus, Weaviate, Pinecone).
-    *   Processus pour charger, découper (chunking), et vectoriser (embedding) des documents dans cette base.
-2.  **Implémentation du mécanisme de Récupération (Retrieval)**:
-    *   Un nouveau service ou une extension de l'`inference_service` pour :
-        *   Prendre une requête utilisateur.
-        *   La vectoriser.
-        *   Effectuer une recherche de similarité dans la base de données vectorielle pour trouver les N documents/chunks les plus pertinents.
-3.  **Logique d'Augmentation et Génération**:
-    *   Modifier l'`inference_service` (ou le nouveau service RAG) pour :
-        *   Prendre la requête utilisateur originale et les documents récupérés.
-        *   Construire un prompt augmenté (contexte + question).
-        *   Envoyer ce prompt augmenté au modèle LLM (actuellement `distilgpt2` ou un autre plus performant) pour générer la réponse finale.
-    *   L'API key existante continuera de protéger l'accès à cette fonctionnalité de génération augmentée.
-
-## Considérations de Sécurité
-
-*   **Mots de passe**: Stockés hashés (bcrypt).
-*   **Secrets**: Les secrets (clés JWT, identifiants de base de données) devraient idéalement être gérés via des variables d'environnement injectées ou un système de gestion de secrets (ex: HashiCorp Vault, Docker secrets) en production. Actuellement, certains sont dans `docker-compose.yml` pour la simplicité locale.
-*   **Validation des entrées**: Pydantic est utilisé pour la validation des données dans les requêtes FastAPI.
-*   **HTTPS**: Essentiel en production. Nginx peut être configuré pour la terminaison SSL.
-*   **Permissions des clés API**: (Futur) Possibilité d'ajouter des permissions/scopes aux clés API.
-*   **Rate Limiting**: À considérer pour protéger contre les abus.
-
-## Scalabilité
-
-*   Chaque microservice peut être scalé indépendamment en augmentant le nombre de répliques de conteneurs (ex: `docker-compose up --scale <service_name>=<num_replicas>`).
-*   Pour une scalabilité avancée et une gestion en production, des orchestrateurs comme Kubernetes sont recommandés.
-*   Le choix de modèles LLM plus petits ou quantifiés peut aider à la scalabilité de l'inférence.
-
-## Contribution
-
-Ce projet est actuellement privé. Pour toute suggestion ou question, veuillez contacter le propriétaire du dépôt.
+For support and questions:
+- 📧 Email: support@sothema.ai
+- 📖 Documentation: [docs.sothema.ai](https://docs.sothema.ai)
+- 🐛 Issues: [GitHub Issues](https://github.com/abdobzx/SothemaAI/issues)
 
 ---
-*Ce README est destiné à un usage interne et suppose un accès contrôlé au dépôt.*
+
+**Built with ❤️ for the AI community**

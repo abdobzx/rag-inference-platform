@@ -1,0 +1,47 @@
+version: 2
+updates:
+  # Enable version updates for Python packages
+  - package-ecosystem: "pip"
+    directory: "/fastapi-microservices-app/auth_service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "pip"
+    directory: "/fastapi-microservices-app/inference_service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "pip"
+    directory: "/fastapi-microservices-app/gateway"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "pip"
+    directory: "/fastapi-microservices-app/logging_service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Enable version updates for npm packages
+  - package-ecosystem: "npm"
+    directory: "/fastapi-microservices-app/frontend_react"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/fastapi-microservices-app"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
