@@ -6,7 +6,17 @@ from .utils.model_loader import load_model_and_tokenizer, load_embedding_model
 from .rag.knowledge_base import KnowledgeBase
 from .rag.retriever import Retriever
 from .rag.rag_prompt_augmenter import RagPromptAugmenter
-import logging
+import sys
+import os
+
+# Add shared_utils to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from shared_utils.logging_utils import get_logger
+from shared_utils.middleware.logging_middleware import LoggingMiddleware
+
+# Initialize structured logger
+logger = get_logger("inference_service")
 
 app = FastAPI(
     title="SothemaAI Inference Service",
@@ -56,8 +66,12 @@ All requests are validated to ensure pharmaceutical relevance:
     }
 )
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Add logging middleware
+app.add_middleware(LoggingMiddleware, service_name="inference_service")
+
+# Include routers
+app.include_router(inference_router)
+app.include_router(health_router)
 
 @app.on_event("startup")
 async def startup_event():

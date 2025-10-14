@@ -1,6 +1,16 @@
 from fastapi import FastAPI
 from .routes.logs import router as logs_router
-from .utils.logger import setup_logging
+import sys
+import os
+
+# Add shared_utils to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from shared_utils.logging_utils import get_logger
+from shared_utils.middleware.logging_middleware import LoggingMiddleware
+
+# Initialize structured logger
+logger = get_logger("logging_service")
 
 app = FastAPI(
     title="SothemaAI Logging Service",
@@ -35,7 +45,7 @@ Centralized logging and monitoring service for the SothemaAI microservices platf
     contact={
         "name": "SothemaAI Development Team",
         "url": "https://github.com/abdobzx/SothemaAI",
-        "email": "dev@sothema.ai",
+        "email": "https://github.com/abdobzx/SothemaAI",
     },
     license_info={
         "name": "MIT License",
@@ -43,12 +53,8 @@ Centralized logging and monitoring service for the SothemaAI microservices platf
     }
 )
 
-# Setup logging
-setup_logging()
+# Add logging middleware
+app.add_middleware(LoggingMiddleware, service_name="logging_service")
 
 # Include the logs router
 app.include_router(logs_router)
-
-@app.get("/")
-def read_root():
-    return {"message": "Logging Service is running."}

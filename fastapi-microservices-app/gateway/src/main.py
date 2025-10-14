@@ -1,27 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes.gateway import router as gateway_router
-import logging
-
-# Configuration du logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .routes.gateway import router as gateway_router
-import logging
+import sys
+import os
 
-# Configuration du logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Add shared_utils to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from shared_utils.logging_utils import get_logger
+from shared_utils.middleware.logging_middleware import LoggingMiddleware
+
+# Initialize structured logger
+logger = get_logger("gateway_service")
 
 app = FastAPI(
     title="SothemaAI API Gateway",
@@ -90,6 +81,9 @@ if hasattr(app, 'openapi') and app.openapi():
     openapi_schema = app.openapi()
     openapi_schema["components"]["securitySchemes"] = security_schemes
     app.openapi_schema = openapi_schema
+
+# Add logging middleware
+app.add_middleware(LoggingMiddleware, service_name="gateway_service")
 
 # CORS configuration
 app.add_middleware(
