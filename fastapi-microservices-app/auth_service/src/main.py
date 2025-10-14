@@ -1,20 +1,89 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from .routes.auth import router as auth_router
 from .routes.api_key_routes import router as api_key_router, internal_router as api_key_internal_router  # Importer le nouveau routeur interne
+from .routes.health import router as health_router
 from .database import engine, Base
 from .models.user import User  # Import explicite du modèle User
 from .models.api_key import APIKey  # Importer le modèle APIKey
+from .exceptions import SothemaAIException
+from .error_handlers import (
+    sothema_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
+    sqlalchemy_exception_handler,
+    generic_exception_handler,
+    add_request_id
+)
+from .middleware.rate_limit import RateLimitMiddleware, rate_limiter
 import logging
 
 # Configuration du logger
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(
+    title="SothemaAI Authentication Service",
+    description="""
+# SothemaAI Authentication & API Key Management Service
 
+This service handles user authentication, authorization, and API key management for the SothemaAI platform.
+
+## Features
+
+- **🔐 JWT Authentication**: Secure token-based authentication with configurable expiration
+- **👤 User Management**: Registration, email verification, and user profile management
+- **🔑 API Key Management**: Generate, list, and revoke API keys for inference services
+- **🛡️ Security**: Rate limiting, input validation, and secure password hashing
+- **📊 Monitoring**: Health checks and comprehensive logging
+
+## Authentication Flow
+
+1. **Registration**: Users register with email verification requirement
+2. **Email Verification**: 6-digit code sent to @mysothemalab.com emails only
+3. **Login**: JWT tokens issued for authenticated sessions
+4. **API Keys**: Generate keys for programmatic access to inference services
+
+## Security Features
+
+- Password complexity requirements (8+ chars, mixed case, digits, symbols)
+- Email domain restrictions for organizational security
+- Rate limiting to prevent brute force attacks
+- Input sanitization and validation
+- Secure API key generation and storage
+    """,
+    version="1.0.0",
+    contact={
+        "name": "SothemaAI Development Team",
+        "url": "https://github.com/abdobzx/SothemaAI",
+        "email": "dev@sothema.ai",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    }
+)
+
+# Add middleware
+app.middleware("http")(add_request_id)
+app.add_middleware(RateLimitMiddleware, rate_limiter=rate_limiter)
+
+# Add exception handlers
+app.add_exception_handler(SothemaAIException, sothema_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(SQLAlchemyError, sqlalchemy_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
+
+# Include routers
 app.include_router(auth_router)
 app.include_router(api_key_router)  # Inclure le routeur de gestion des clés API (protégé par JWT)
 app.include_router(api_key_internal_router)  # Inclure le routeur de validation interne des clés API (non protégé par JWT)
+app.include_router(health_router)
 
 @app.on_event("startup")
 async def startup_db_client():

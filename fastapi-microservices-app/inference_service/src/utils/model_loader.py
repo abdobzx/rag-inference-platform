@@ -1,5 +1,6 @@
 from typing import Any, Dict, Tuple, List
 import logging
+import os
 from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel, PreTrainedTokenizer
 import torch
 from sentence_transformers import SentenceTransformer
@@ -15,12 +16,15 @@ _embedding_model: SentenceTransformer | None = None
 
 # Configuration du modèle et du tokenizer (MODIFIABLE)
 # Ancien modèle: deepseek-ai/deepseek-coder-1.3b-instruct
-MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2" 
-TOKENIZER_NAME = "mistralai/Mistral-7B-Instruct-v0.2"
+MODEL_NAME = os.getenv("MODEL_NAME", "mistralai/Mistral-7B-Instruct-v0.2")
+TOKENIZER_NAME = os.getenv("TOKENIZER_NAME", "mistralai/Mistral-7B-Instruct-v0.2")
 
 # Modèle d'embedding (MODIFIABLE SI NÉCESSAIRE)
 # Ancien modèle: sentence-transformers/all-MiniLM-L6-v2
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
+
+# HuggingFace token for authentication
+HUGGINGFACE_TOKEN = os.getenv("HUGGING_FACE_HUB_TOKEN")
 
 def load_model_and_tokenizer() -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     """Charge le modèle LLM et le tokenizer."""
@@ -31,7 +35,11 @@ def load_model_and_tokenizer() -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
 
     try:
         logger.info(f"Tentative de chargement du tokenizer : {TOKENIZER_NAME}")
-        tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAME)
+        tokenizer = AutoTokenizer.from_pretrained(
+            TOKENIZER_NAME,
+            token=HUGGINGFACE_TOKEN,
+            trust_remote_code=True
+        )
         logger.info("Tokenizer chargé avec succès.")
 
         # CORRECTION POUR model_max_length ABERRANT
@@ -48,6 +56,7 @@ def load_model_and_tokenizer() -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
         model = AutoModelForCausalLM.from_pretrained(
             MODEL_NAME, 
             trust_remote_code=True,
+            token=HUGGINGFACE_TOKEN,
             device_map="auto",
             torch_dtype=torch.bfloat16
         )
@@ -82,7 +91,11 @@ def load_embedding_model(model_name: str = EMBEDDING_MODEL_NAME) -> SentenceTran
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Utilisation du périphérique pour le modèle d'embedding : {device}")
         
-        embedding_model = SentenceTransformer(model_name, device=device)
+        embedding_model = SentenceTransformer(
+            model_name, 
+            device=device,
+            token=HUGGINGFACE_TOKEN
+        )
         _embedding_model = embedding_model
         logger.info(f"Modèle d'embedding '{model_name}' chargé avec succès sur {device}.")
         return embedding_model

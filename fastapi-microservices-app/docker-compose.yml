@@ -28,10 +28,10 @@ services:
         condition: service_healthy
       logging_service:
         condition: service_started
+    env_file:
+      - .env.auth
     environment:
       - DATABASE_URL=postgresql://sothemaai:REDACTED_DEV_PASSWORD@postgres:5432/sothemaai
-      - EMAIL_HOST_USER=abdobzx@gmail.com  # << REMPLACEZ CECI
-      - EMAIL_HOST_PASSWORD=intw zznn ffqz ymzi # << REMPLACEZ CECI
       - LOG_LEVEL=DEBUG # Ajout du niveau de log DEBUG
 
   inference_service:
@@ -39,7 +39,7 @@ services:
       context: ./inference_service
       dockerfile: Dockerfile
     env_file:  # Ajout pour lire les variables d'environnement
-      - .env   # Chemin vers le fichier .env
+      - .env.inference   # Chemin vers le fichier .env.inference
     ports:
       - "8002:8001" 
     deploy: # Ajout pour l'accès au GPU

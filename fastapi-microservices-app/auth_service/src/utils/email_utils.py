@@ -12,7 +12,9 @@ EMAIL_PORT = 587  # Port pour TLS
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER") # Votre adresse email Gmail
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD") # Votre mot de passe d'application Gmail
 
-def send_verification_email(to_email: str, verification_code: str, username: str):
+def check_email_configuration() -> bool:
+    """Check if email service is properly configured"""
+    return bool(EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
     if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
         logger.error("Les variables d'environnement EMAIL_HOST_USER ou EMAIL_HOST_PASSWORD ne sont pas définies. Impossible d'envoyer l'e-mail.")
         logger.warning(f"SIMULATION D'ENVOI D'EMAIL (car identifiants non configurés) à {to_email} avec le code {verification_code}")

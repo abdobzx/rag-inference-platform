@@ -1,0 +1,275 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from ..models.user import User
+from ..utils import security  # security contient maintenant generate_verification_code
+from ..utils.email_utils import send_verification_email  # Import de la fonction d'envoi d'email
+from ..database import get_db
+from ..exceptions import (
+    UserAlreadyExistsError,
+    InvalidEmailDomainError,
+    EmailServiceError,
+    DatabaseConnectionError
+)
+from pydantic import BaseModel, EmailStr, validator, Field
+from typing import Optional
+import re
+import html
+import logging
+from datetime import datetime, timedelta
+
+# Configuration des logs
+logger = logging.getLogger(__name__)
+
+# Domaines email autorisés
+ALLOWED_EMAIL_DOMAIN = "@mysothemalab.com"
+VERIFICATION_CODE_EXPIRE_MINUTES = 15
+
+# Validation patterns
+USERNAME_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{3,30}$')
+PASSWORD_PATTERN = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
+VERIFICATION_CODE_PATTERN = re.compile(r'^\d{6}$')
+
+def sanitize_string(value: str) -> str:
+    """Sanitize string input to prevent XSS attacks"""
+    if not isinstance(value, str):
+        return value
+    # Remove HTML tags and escape special characters
+    sanitized = html.escape(value.strip())
+    # Remove potential script tags (double protection)
+    sanitized = re.sub(r'<script[^>]*>.*?</script>', '', sanitized, flags=re.IGNORECASE | re.DOTALL)
+    sanitized = re.sub(r'javascript:', '', sanitized, flags=re.IGNORECASE)
+    return sanitized
+
+class UserCreate(BaseModel):
+    username: str = Field(
+        min_length=3, max_length=30, pattern=r'^[a-zA-Z0-9_-]+$',
+        description="Username must be 3-30 characters, alphanumeric with underscores and hyphens"
+    )
+    email: EmailStr = Field(..., description="Valid email address")
+    password: str = Field(
+        min_length=8, max_length=128,
+        description="Password must be 8-128 characters with uppercase, lowercase, digit, and special character"
+    )
+    full_name: Optional[str] = Field(
+        None, min_length=1, max_length=100,
+        description="Full name (optional, 1-100 characters)"
+    )
+
+    @validator('username')
+    def validate_username(cls, v):
+        """Validate username format and content"""
+        if not USERNAME_PATTERN.match(v):
+            raise ValueError(
+                'Username must be 3-30 characters long and contain only letters, numbers, underscores, and hyphens'
+            )
+        # Sanitize input
+        return sanitize_string(v)
+
+    @validator('email')
+    def validate_email_domain(cls, v):
+        """Validate email domain and format"""
+        if not v or not isinstance(v, str):
+            raise ValueError('Email is required')
+
+        # Basic email format validation
+        email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        if not email_pattern.match(v):
+            raise ValueError('Invalid email format')
+
+        # Domain restriction
+        if not v.endswith(ALLOWED_EMAIL_DOMAIN):
+            raise ValueError(f'Email must belong to the {ALLOWED_EMAIL_DOMAIN} domain')
+
+        return sanitize_string(v).lower()
+
+    @validator('password')
+    def validate_password_strength(cls, v):
+        """Validate password strength"""
+        if not PASSWORD_PATTERN.match(v):
+            raise ValueError(
+                'Password must be at least 8 characters long and contain at least one uppercase letter, '
+                'one lowercase letter, one digit, and one special character (@$!%*?&)'
+            )
+        return v  # Don't sanitize password as it might break special characters
+
+    @validator('full_name')
+    def validate_full_name(cls, v):
+        """Validate and sanitize full name"""
+        if v is not None:
+            return sanitize_string(v)
+        return v
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr = Field(..., description="Email address to verify")
+    code: str = Field(
+        min_length=6, max_length=6, pattern=r'^\d{6}$',
+        description="6-digit verification code"
+    )
+
+    @validator('email')
+    def validate_email(cls, v):
+        """Validate email format"""
+        if not v or not isinstance(v, str):
+            raise ValueError('Email is required')
+
+        email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        if not email_pattern.match(v):
+            raise ValueError('Invalid email format')
+
+        return sanitize_string(v).lower()
+
+    @validator('code')
+    def validate_verification_code(cls, v):
+        """Validate verification code format"""
+        if not VERIFICATION_CODE_PATTERN.match(v):
+            raise ValueError('Verification code must be exactly 6 digits')
+        return v
+
+router = APIRouter()
+
+@router.post("/auth/register")
+def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
+    logger.info(f"Tentative d'enregistrement pour l'utilisateur: {user_data.username} avec email: {user_data.email}")
+    
+    # Vérification si l'email ou username existe déjà
+    existing_user_email = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user_email:
+        logger.warning(f"Tentative d'enregistrement avec un email déjà existant: {user_data.email}")
+        raise UserAlreadyExistsError(
+            message="Cet email est déjà enregistré.",
+            details={"field": "email", "value": user_data.email}
+        )
+    
+    existing_user_username = db.query(User).filter(User.username == user_data.username).first()
+    if existing_user_username:
+        logger.warning(f"Tentative d'enregistrement avec un nom d'utilisateur déjà existant: {user_data.username}")
+        raise UserAlreadyExistsError(
+            message="Ce nom d'utilisateur est déjà pris.",
+            details={"field": "username", "value": user_data.username}
+        )
+
+    try:
+        logger.debug(f"Mot de passe fourni pour l'enregistrement de {user_data.email}: {user_data.password}") # DEBUG LOG
+        hashed_password = security.hash_password(user_data.password)
+        logger.debug(f"Mot de passe haché pour {user_data.email}: {hashed_password}") # DEBUG LOG
+        verification_code = security.generate_verification_code()
+        verification_code_expires_at = datetime.utcnow() + timedelta(minutes=VERIFICATION_CODE_EXPIRE_MINUTES)
+        
+        new_user = User(
+            username=user_data.username,
+            email=user_data.email,
+            full_name=user_data.full_name,
+            hashed_password=hashed_password,
+            is_verified=False,  # L'utilisateur n'est pas vérifié au moment de l'inscription
+            verification_code=verification_code,
+            verification_code_expires_at=verification_code_expires_at
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        # Envoi de l'email de vérification
+        email_sent = send_verification_email(
+            to_email=new_user.email, 
+            verification_code=verification_code, 
+            username=new_user.username
+        )
+        
+        if not email_sent:
+            logger.error(f"Échec de l'envoi de l'e-mail de vérification à {new_user.email}. L'utilisateur devra peut-être vérifier manuellement ou réessayer.")
+            raise EmailServiceError(
+                message="Échec de l'envoi de l'e-mail de vérification. Veuillez contacter le support.",
+                details={"email": new_user.email}
+            )
+
+        logger.info(f"UTILISATEUR ENREGISTRÉ: {new_user.email}. Email de vérification envoyé.")
+        
+        return {"message": "Utilisateur enregistré avec succès. Veuillez vérifier votre e-mail pour le code de vérification.", "user_id": new_user.id, "email": new_user.email}
+    except ValueError as ve:  # Capturer l'erreur de validation de domaine
+        logger.error(f"Erreur de validation lors de l'enregistrement: {ve}")
+        raise InvalidEmailDomainError(
+            message=str(ve),
+            details={"email": user_data.email}
+        )
+    except Exception as e:
+        logger.error(f"Erreur lors de l'enregistrement de l'utilisateur {user_data.username}: {e}", exc_info=True)
+        db.rollback()
+        raise DatabaseConnectionError(
+            message="Erreur interne du serveur lors de l'enregistrement.",
+            details={"username": user_data.username}
+        )
+
+@router.post("/auth/verify-email")
+def verify_email(request_data: VerifyEmailRequest, db: Session = Depends(get_db)):
+    logger.info(f"Tentative de vérification d'email pour: {request_data.email} avec le code: {request_data.code}")
+    user = db.query(User).filter(User.email == request_data.email).first()
+
+    if not user:
+        logger.warning(f"Tentative de vérification pour un email non trouvé: {request_data.email}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé.")
+
+    # Access attributes properly - these are SQLAlchemy model instances, not Column objects
+    is_verified = bool(user.is_verified)  # type: ignore
+    verification_code = str(user.verification_code) if user.verification_code else None  # type: ignore
+    expires_at = user.verification_code_expires_at  # type: ignore
+
+    if is_verified:
+        logger.info(f"Email déjà vérifié pour: {request_data.email}")
+        return {"message": "Cet e-mail est déjà vérifié."}
+
+    if verification_code != request_data.code:
+        logger.warning(f"Code de vérification invalide pour: {request_data.email}. Attendu: {verification_code}, Reçu: {request_data.code}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Code de vérification invalide.")
+
+    if expires_at and datetime.utcnow() > expires_at:
+        logger.warning(f"Code de vérification expiré pour: {request_data.email}. Expiré à: {expires_at}")
+        # Optionnel : Renvoyer un nouveau code ou demander à l'utilisateur de s'inscrire à nouveau / demander un nouveau code
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Code de vérification expiré.")
+
+    # Update user attributes
+    user.is_verified = True  # type: ignore
+    user.verification_code = None  # Effacer le code après utilisation  # type: ignore
+    user.verification_code_expires_at = None  # type: ignore
+    db.commit()
+
+    logger.info(f"Email vérifié avec succès pour: {request_data.email}")
+    return {"message": "E-mail vérifié avec succès. Vous pouvez maintenant vous connecter."}
+@router.post("/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    logger.info(f"Tentative de connexion pour l'email: {form_data.username}")  # form_data.username est l'email ici
+    user = db.query(User).filter(User.email == form_data.username).first()
+    
+    if not user:
+        logger.warning(f"Tentative de connexion échouée: Utilisateur non trouvé pour l'email {form_data.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou mot de passe incorrect.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    logger.debug(f"Tentative de vérification du mot de passe pour {form_data.username}. MDP fourni: {form_data.password}, MDP haché en BDD: {user.hashed_password}") # DEBUG LOG
+    if not security.verify_password(form_data.password, str(user.hashed_password)):  # type: ignore
+        logger.warning(f"Tentative de connexion échouée: Mot de passe incorrect pour l'email {form_data.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou mot de passe incorrect.",  # Message générique pour la sécurité
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not bool(user.is_verified):  # type: ignore
+        logger.warning(f"Tentative de connexion échouée: Email non vérifié pour {form_data.username}")
+        # Optionnel: Renvoyer un message plus spécifique ou permettre de renvoyer un code de vérification
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,  # 403 Forbidden
+            detail="Veuillez vérifier votre e-mail avant de vous connecter. Un code vous a été envoyé lors de l'inscription.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    access_token_expires = timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        data={"sub": user.email, "user_id": user.id}, expires_delta=access_token_expires  # Ajout de user_id au token
+    )
+    logger.info(f"Connexion réussie et token généré pour: {user.email}")
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id, "email": user.email}
