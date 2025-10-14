@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from .routes.inference import router as inference_router
+from .routes.health import router as health_router
 # Updated import to include new model loading function
 from .utils.model_loader import load_model_and_tokenizer, load_embedding_model
 from .rag.knowledge_base import KnowledgeBase
@@ -7,7 +8,53 @@ from .rag.retriever import Retriever
 from .rag.rag_prompt_augmenter import RagPromptAugmenter
 import logging
 
-app = FastAPI()
+app = FastAPI(
+    title="SothemaAI Inference Service",
+    description="""
+# SothemaAI AI Inference & RAG Service
+
+Advanced AI-powered inference service specializing in pharmaceutical and medical content generation using state-of-the-art transformer models and Retrieval Augmented Generation (RAG).
+
+## AI Capabilities
+
+- **🤖 Text Generation**: GPT-style text completion with medical context awareness
+- **🔍 Retrieval Augmented Generation (RAG)**: Enhanced responses using medical knowledge base
+- **📊 Text Embeddings**: Vector representations for semantic search and similarity
+- **🩺 Pharmaceutical Focus**: Specialized validation for medical and pharmaceutical content
+
+## Models & Technology
+
+- **Generation Model**: Llama-based transformer for coherent medical text generation
+- **Embedding Model**: Sentence transformers for semantic understanding
+- **Knowledge Base**: Curated medical literature and pharmaceutical data
+- **RAG System**: Context-aware response generation with source attribution
+
+## Content Validation
+
+All requests are validated to ensure pharmaceutical relevance:
+- Medical terminology detection
+- Drug information validation
+- Clinical context verification
+- Safety-focused content filtering
+
+## Performance Features
+
+- GPU acceleration support
+- Model caching and optimization
+- Async processing for scalability
+- Comprehensive error handling and logging
+    """,
+    version="1.0.0",
+    contact={
+        "name": "SothemaAI Development Team",
+        "url": "https://github.com/abdobzx/SothemaAI",
+        "email": "dev@sothema.ai",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    }
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -64,6 +111,7 @@ async def shutdown_event():
 
 # Inclure les routes d'inférence
 app.include_router(inference_router)
+app.include_router(health_router)
 
 @app.get("/")
 def read_root():

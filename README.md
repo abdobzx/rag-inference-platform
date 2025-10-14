@@ -147,33 +147,67 @@ L'application suit une architecture de microservices, orchestrée avec Docker Co
 
 ## Prérequis
 
-*   Docker et Docker Compose installés.
-*   NVIDIA Container Toolkit (si utilisation du GPU).
-*   Pilotes NVIDIA à jour sur l'hôte (si utilisation du GPU).
-*   Git.
+Avant de lancer l'application, assurez-vous d'avoir :
+
+- **Docker** et **Docker Compose** installés
+- **Git** pour cloner le repository
+- Un compte **HuggingFace** avec un token d'accès (pour les modèles d'IA)
+- Un compte **Gmail** avec un mot de passe d'application (pour les emails de vérification)
 
 ## Installation et Lancement
 
-1.  **Cloner le dépôt** (ceci est un projet privé, assurez-vous d'avoir les accès) :
+### 1. Cloner le repository
 
-    ```bash
-    git clone <URL_DU_DEPOT_PRIVE>
-    cd fastapi-microservices-app
-    ```
+```bash
+git clone <repository-url>
+cd SothemaAI/fastapi-microservices-app
+```
 
-2.  **Variables d'environnement** :
-    Assurez-vous que les configurations dans `docker-compose.yml` (ex: `DATABASE_URL` pour `auth_service`) sont correctes pour votre environnement si vous les modifiez. Les valeurs par défaut devraient fonctionner pour un lancement local.
+### 2. Configuration des variables d'environnement
 
-3.  **Construire et démarrer les services** :
+Copiez les fichiers d'exemple d'environnement et configurez vos credentials :
 
-    ```bash
-    docker-compose up --build -d
-    ```
+```bash
+# Auth Service
+cp .env.auth.example .env.auth
+# Éditez .env.auth avec vos vraies credentials
 
-    L'option `-d` lance les conteneurs en mode détaché. Pour voir les logs : `docker-compose logs -f` ou `docker-compose logs -f <nom_du_service>`.
+# Inference Service
+cp .env.inference.example .env.inference
+# Éditez .env.inference avec votre token HuggingFace
 
-4.  **Initialisation de la base de données** (si nécessaire) :
-    Le service `auth_service` est configuré pour créer les tables au démarrage si elles n'existent pas.
+# Gateway Service
+cp .env.gateway.example .env.gateway
+
+# Frontend
+cp .env.frontend.example .env.frontend
+```
+
+**Variables importantes à configurer :**
+
+- **`.env.auth`** : `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `JWT_SECRET_KEY`
+- **`.env.inference`** : `HUGGING_FACE_HUB_TOKEN`
+- **`.env.gateway`** : URLs des services (généralement pas besoin de modifier)
+- **`.env.frontend`** : URLs des API (généralement pas besoin de modifier)
+
+### 3. Lancement de l'application
+
+```bash
+docker-compose up --build
+```
+
+L'application sera accessible sur :
+- **Frontend** : http://localhost
+- **API Gateway** : http://localhost:8000
+- **Documentation API** : http://localhost:8000/docs
+
+### 4. Accès initial
+
+1. Allez sur http://localhost
+2. Créez un compte utilisateur (doit être @mysothemalab.com)
+3. Vérifiez votre email pour le code de vérification
+4. Connectez-vous et générez une clé API
+5. Utilisez la clé API pour accéder aux fonctionnalités d'IA
 
 ## Accès aux Services
 
