@@ -104,3 +104,8 @@ async def startup_event():
 @app.get("/")
 async def root():
     return {"message": "Welcome to the SothemaAI API Gateway"}
+
+@app.get("/health")
+async def health_check():
+    """Liveness check for docker-compose / orchestrator healthchecks."""
+    return {"status": "healthy", "service": "gateway"}

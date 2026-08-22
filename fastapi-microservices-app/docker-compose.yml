@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:13
@@ -27,12 +25,19 @@ services:
       postgres:
         condition: service_healthy
       logging_service:
-        condition: service_started
+        condition: service_healthy
     env_file:
       - .env.auth
     environment:
       # DB credentials come from the root .env / postgres service above, not duplicated here
       - DATABASE_URL=postgresql://${POSTGRES_USER:-sothemaai}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-sothemaai}
+    healthcheck:
+      # No curl/wget in the python:3.10-slim base image - python3 is already there.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   inference_service:
     build:
@@ -46,7 +51,15 @@ services:
     # To enable GPU acceleration, run with the override file instead:
     #   docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
     depends_on:
-      - logging_service
+      logging_service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      # Model loading (embedding/LLM) takes longer than a typical API boot.
+      start_period: 60s
 
   logging_service:
     build:
@@ -54,6 +67,12 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8003:8002"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   gateway:
     build:
@@ -62,9 +81,18 @@ services:
     ports:
       - "8000:8080"
     depends_on:
-      - auth_service
-      - inference_service
-      - logging_service
+      auth_service:
+        condition: service_healthy
+      inference_service:
+        condition: service_healthy
+      logging_service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   frontend_react:
     build:
@@ -80,8 +108,10 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - gateway
-      - frontend_react
+      gateway:
+        condition: service_healthy
+      frontend_react:
+        condition: service_started
 
 networks:
   default:

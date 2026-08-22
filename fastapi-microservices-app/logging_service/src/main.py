@@ -58,3 +58,9 @@ app.add_middleware(LoggingMiddleware, service_name="logging_service")
 
 # Include the logs router
 app.include_router(logs_router)
+
+
+@app.get("/health")
+async def health_check():
+    """Liveness check for docker-compose / orchestrator healthchecks."""
+    return {"status": "healthy", "service": "logging_service"}

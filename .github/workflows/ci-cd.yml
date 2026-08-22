@@ -59,18 +59,17 @@ jobs:
       run: |
         cd fastapi-microservices-app/auth_service
         export DATABASE_URL="postgresql://test_user:test_password@localhost:5432/test_db"
-        ./migrate.sh up
+        export JWT_SECRET_KEY="ci-test-secret-not-for-production"
+        python migrate.py upgrade
 
-    - name: Run tests
+    - name: Run auth service tests
       run: |
-        cd fastapi-microservices-app
-        # Run auth service tests
-        cd auth_service && python -m pytest src/ -v --cov=src --cov-report=xml
-        cd ..
-        # Run inference service tests (if they exist)
-        # cd inference_service && python -m pytest src/ -v --cov=src --cov-report=xml
-        # cd ..
-        # Add other service tests as they are implemented
+        cd fastapi-microservices-app/auth_service
+        python -m pytest tests/ -v --cov=src --cov-report=xml
+        # gateway/inference_service/logging_service don't have real automated
+        # test suites yet (the previous "tests" there were unassertive smoke
+        # scripts that could never fail under pytest - removed rather than
+        # left as misleading coverage). Add real suites here as they land.
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3

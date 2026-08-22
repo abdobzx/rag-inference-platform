@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from ..database import get_db
-import psycopg2
 import logging
 from typing import Dict, Any
 import time
