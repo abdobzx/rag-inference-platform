@@ -2,12 +2,24 @@ fastapi
 uvicorn
 pydantic
 scikit-learn
-numpy
+# numpy<2: faiss-cpu's prebuilt wheels still expect the numpy 1.x C-extension
+# ABI as of this writing; unpinned, pip can resolve numpy 2.x here and every
+# faiss call segfaults on import instead of failing with a clear error.
+numpy<2
 torch
-transformers
+# transformers<4.40 / sentence-transformers<3.0: newer releases require
+# torch>=2.5, which has no wheel for every platform this has been verified
+# on - left unpinned, pip can resolve a transformers/torch combo that
+# satisfies declared constraints but fails at runtime import.
+transformers<4.40
+sentence-transformers<3.0
 joblib
 loguru
 httpx # Ajouté pour les appels HTTP au service d'authentification
-sentence-transformers
 faiss-cpu
 accelerate # Ajouté pour les modèles Transformers plus volumineux
+
+# Multi-agent RAG (Corrective RAG / Self-RAG pattern, see src/rag/agentic_rag.py)
+langgraph
+langchain-anthropic
+anthropic

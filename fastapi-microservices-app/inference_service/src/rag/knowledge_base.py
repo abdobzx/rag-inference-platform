@@ -1,6 +1,10 @@
 import os
-import faiss
+# sentence_transformers (and the torch it pulls in) must be imported before
+# faiss - both bundle their own OpenMP runtime, and importing faiss first
+# causes a segfault on import on some platforms (observed on macOS/x86_64)
+# once both native libraries are loaded into the same process.
 from sentence_transformers import SentenceTransformer
+import faiss
 from loguru import logger
 
 MODEL_NAME = 'all-MiniLM-L6-v2' # Modèle compact et efficace pour les embeddings

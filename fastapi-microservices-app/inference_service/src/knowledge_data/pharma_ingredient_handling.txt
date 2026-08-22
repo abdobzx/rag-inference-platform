@@ -1,0 +1,18 @@
+Active pharmaceutical ingredients (APIs) must be stored at the temperature specified on their certificate of analysis, typically between 15C and 25C for solid dosage form excipients.
+Cold-chain ingredients such as certain biologics and enzymes require storage between 2C and 8C and must never be exposed to ambient temperature for more than 30 minutes during transfer.
+Every ingredient batch must be logged with its lot number, supplier certificate of analysis reference, and receipt date before it can be released for use in production.
+Cross-contamination prevention requires that allergenic ingredients such as lactose, gluten-derived excipients, and certain preservatives be handled in a dedicated, physically separated preparation zone.
+Before weighing any active ingredient, operators must verify the batch has not exceeded its retest date and that the container seal is intact.
+Weighing and dispensing of active ingredients must be performed under a calibrated balance with daily calibration checks logged in the equipment logbook.
+Any deviation greater than 0.5% from the target weight during dispensing must be documented as a quality event and requires supervisor sign-off before the batch proceeds.
+Water used in ingredient preparation must meet Purified Water USP or Ph. Eur. specifications, with conductivity and microbial testing performed per batch.
+Equipment used for ingredient mixing must be cleaned and the cleaning validated between different product runs to prevent cross-contamination, following the site's cleaning validation protocol.
+Personnel handling active pharmaceutical ingredients must wear appropriate PPE including gloves, mask, and where required, a full cleanroom gown, per the ingredient's material safety data sheet.
+Excipients with a known incompatibility (for example, certain amine-based excipients with reducing sugars) must not be pre-mixed and stored together prior to formulation.
+Every ingredient preparation step must be recorded in the batch manufacturing record in real time, not reconstructed afterward, to remain compliant with good manufacturing practice (GMP) documentation rules.
+If an ingredient's certificate of analysis shows an out-of-specification result for assay purity, the batch must be quarantined and cannot be used until quality assurance releases it.
+Humidity-sensitive ingredients such as certain hygroscopic powders must be prepared in a controlled environment below 40% relative humidity to prevent caking or degradation.
+The maximum allowable holding time between ingredient dispensing and use in the next manufacturing step is defined per product in the site's validated process parameters, and exceeding it requires re-testing.
+Ingredient preparation anomalies - such as unexpected color change, unusual odor, or a discrepancy between expected and actual yield - must be reported immediately to the quality assurance team, not resolved informally by the operator.
+Light-sensitive active ingredients, including several vitamin and hormone compounds, must be prepared and stored in amber glass or opaque containers to prevent photodegradation.
+Reconciliation of ingredient quantities (amount received, amount used, amount remaining, amount wasted) is mandatory at the end of every preparation batch and must balance within the site's approved tolerance.

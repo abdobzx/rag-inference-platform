@@ -81,6 +81,7 @@ htmlcov/
 *.pt
 *.h5
 *.pkl
+*.idx
 models/
 checkpoints/
 

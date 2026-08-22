@@ -48,7 +48,7 @@ Access the application at [http://localhost](http://localhost)
 - 🔐 **User Authentication** - JWT-based authentication with email verification
 - 🔑 **API Key Management** - Create, manage, and revoke API keys per user
 - 🤖 **LLM Inference** - GPU-accelerated inference with Hugging Face models
-- 📚 **RAG Support** - Retrieval Augmented Generation capabilities
+- 📚 **RAG Support** - Retrieval Augmented Generation, including a multi-agent (LangGraph, Corrective RAG) pipeline that grades its own retrieval, rewrites the query when needed, and checks its own answer for hallucination before returning it - see [Multi-Agent RAG](#-multi-agent-rag) below
 - 📊 **Comprehensive Logging** - Centralized logging across all services
 - 🌐 **Modern Frontend** - React SPA with Tailwind CSS
 - 🐳 **Containerized** - Full Docker orchestration with Docker Compose
@@ -94,6 +94,55 @@ Access the application at [http://localhost](http://localhost)
 | **Inference Service** | FastAPI | 8002 | LLM inference with GPU support |
 | **Logging Service** | FastAPI | 8003 | Centralized logging |
 | **PostgreSQL** | PostgreSQL | 5432 | Data persistence |
+
+## 🕸️ Multi-Agent RAG
+
+`inference_service/src/rag/agentic_rag.py` implements Corrective RAG / Self-RAG
+on top of the existing FAISS retriever: instead of retrieve-then-generate,
+several agents check each other's work before an answer ships.
+
+```
+retrieve -> grade_documents -> [nothing relevant? -> transform_query -> retrieve again]
+                             -> generate -> supervisor (hallucination + relevance check)
+                                          -> [hallucinated? -> retry generate]
+                                          -> [off-topic? -> transform_query, retry]
+                                          -> [grounded + on-topic -> done]
+```
+
+The **supervisor** step is what makes this different from plain RAG: it
+checks the generated answer against the retrieved facts (is it actually
+grounded, or did the model make something up?) and against the original
+question (does it actually answer what was asked?) before letting it
+through. Retries are capped, so a genuinely unanswerable question ends in an
+honest "I don't have enough information" instead of looping or eventually
+fabricating one.
+
+Verified live against the real Claude API (not mocked) on the ingredient-handling
+knowledge base in `src/knowledge_data/pharma_ingredient_handling.txt`:
+
+- **In-scope question** ("What temperature should active pharmaceutical
+  ingredients be stored at?") - clean pass: 4 candidate chunks retrieved, the
+  document-grading agent kept the 2 actually relevant ones, generated a
+  grounded answer, supervisor approved it on the first try.
+- **Out-of-scope question** ("What is the recommended dosage of ibuprofen for
+  a 10-year-old child?" - not covered by this knowledge base at all) - the
+  document grader correctly rejected every retrieved chunk as irrelevant, the
+  query-rewriting agent tried two different reformulations, and after
+  exhausting retries the system returned an honest refusal instead of
+  fabricating a pediatric drug dosage.
+
+Run it yourself:
+```bash
+cd inference_service
+export ANTHROPIC_API_KEY="your_key_here"
+python demo_agentic_rag.py
+```
+
+Or run the (mocked, no API key needed) test suite covering the routing logic:
+```bash
+cd inference_service
+python -m pytest tests/test_agentic_rag.py -v
+```
 
 ## 📦 Prerequisites
 
