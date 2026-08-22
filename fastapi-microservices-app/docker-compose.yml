@@ -6,13 +6,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      - POSTGRES_USER=sothemaai
-      - POSTGRES_PASSWORD=REDACTED_DEV_PASSWORD
-      - POSTGRES_DB=sothemaai
+      - POSTGRES_USER=${POSTGRES_USER:-sothemaai}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      - POSTGRES_DB=${POSTGRES_DB:-sothemaai}
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sothemaai"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sothemaai}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,7 +22,7 @@ services:
       context: ./auth_service
       dockerfile: Dockerfile
     ports:
-      - "8001:8000" 
+      - "8001:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -31,24 +31,20 @@ services:
     env_file:
       - .env.auth
     environment:
-      - DATABASE_URL=postgresql://sothemaai:REDACTED_DEV_PASSWORD@postgres:5432/sothemaai
-      - LOG_LEVEL=DEBUG # Ajout du niveau de log DEBUG
+      # DB credentials come from the root .env / postgres service above, not duplicated here
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sothemaai}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-sothemaai}
 
   inference_service:
     build:
       context: ./inference_service
       dockerfile: Dockerfile
-    env_file:  # Ajout pour lire les variables d'environnement
-      - .env.inference   # Chemin vers le fichier .env.inference
+    env_file:
+      - .env.inference
     ports:
-      - "8002:8001" 
-    deploy: # Ajout pour l'accès au GPU
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1 # ou 'all' pour tous les GPUs disponibles
-              capabilities: [gpu]
+      - "8002:8001"
+    # GPU is opt-in, not required: falls back to CPU automatically (see model_loader.py).
+    # To enable GPU acceleration, run with the override file instead:
+    #   docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
     depends_on:
       - logging_service
 
@@ -57,25 +53,25 @@ services:
       context: ./logging_service
       dockerfile: Dockerfile
     ports:
-      - "8003:8002" 
+      - "8003:8002"
 
   gateway:
     build:
       context: ./gateway
       dockerfile: Dockerfile
     ports:
-      - "8000:8080" 
+      - "8000:8080"
     depends_on:
       - auth_service
       - inference_service
       - logging_service
 
-  frontend_react: # Nouveau service pour l'application React
+  frontend_react:
     build:
       context: ./frontend_react
       dockerfile: Dockerfile
-    # Pas besoin de mapper de port ici si Nginx principal s'en charge.
-    # Le Dockerfile de frontend_react expose déjà le port 80 pour son propre Nginx.
+    # No port mapping needed here: the frontend's own Dockerfile serves via
+    # an internal Nginx on port 80, fronted by the top-level nginx service below.
 
   nginx:
     build:
@@ -85,7 +81,7 @@ services:
       - "80:80"
     depends_on:
       - gateway
-      - frontend_react # Ajout de la dépendance au frontend
+      - frontend_react
 
 networks:
   default:

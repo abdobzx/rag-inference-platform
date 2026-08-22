@@ -45,7 +45,7 @@ Centralized logging and monitoring service for the SothemaAI microservices platf
     contact={
         "name": "SothemaAI Development Team",
         "url": "https://github.com/abdobzx/SothemaAI",
-        "email": "https://github.com/abdobzx/SothemaAI",
+        "email": "dev@sothema.ai",
     },
     license_info={
         "name": "MIT License",

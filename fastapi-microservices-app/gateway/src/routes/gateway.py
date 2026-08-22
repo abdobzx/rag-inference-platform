@@ -28,7 +28,6 @@ router = APIRouter(
         503: {"description": "Service Unavailable - Backend service unavailable"}
     }
 )
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  # Corrigé tokenUrl pour correspondre à l'endpoint /token
 
 # Définition des URLs des services micro-services
 # Utiliser les noms de service Docker qui servent de noms DNS dans le réseau Docker

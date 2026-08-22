@@ -13,7 +13,10 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'b00265253864'
-down_revision: Union[str, None] = 'eea056c9e987'
+# Was 'eea056c9e987' - identical to 523b0c494123's parent, which created two
+# diverged heads and makes `alembic upgrade head` fail with "Multiple head
+# revisions". Rebased onto 523b0c494123 to restore a single linear chain.
+down_revision: Union[str, None] = '523b0c494123'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

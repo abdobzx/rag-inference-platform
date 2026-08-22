@@ -1,5 +1,3 @@
-\
-# filepath: /Users/abderrahman/Desktop/SothemaAI/fastapi-microservices-app/inference_service/src/utils/security.py
 import httpx
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security.api_key import APIKeyHeader

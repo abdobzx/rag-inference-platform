@@ -1,0 +1,14 @@
+version: '3.8'
+
+# Optional GPU override. Use only on a machine with an NVIDIA GPU + nvidia-container-toolkit:
+#   docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+
+services:
+  inference_service:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

@@ -17,5 +17,8 @@ class User(Base):
     verification_code = Column(String, nullable=True)  # Code envoyé par email
     verification_code_expires_at = Column(DateTime, nullable=True)  # Expiration du code
 
+    # RBAC: "user" (default) or "admin". Gated via security.require_admin.
+    role = Column(String, nullable=False, default="user", server_default="user")
+
     # Relation avec les clés API
     api_keys = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")

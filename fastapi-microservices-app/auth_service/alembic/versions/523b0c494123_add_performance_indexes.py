@@ -19,16 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Add indexes for performance on frequently queried columns
-    op.create_index('ix_users_email', 'users', ['email'], unique=True)
-    op.create_index('ix_users_username', 'users', ['username'], unique=True)
-    op.create_index('ix_api_keys_key', 'api_keys', ['key'], unique=True)
+    # ix_users_email / ix_users_username / hashed_key's unique constraint already
+    # exist from migration 934bfc2a0292 (create_users_and_api_keys_tables) - this
+    # migration originally recreated them (fails: "index already exists") and also
+    # referenced a nonexistent 'key' column on api_keys (only key_prefix/hashed_key
+    # exist). Only ix_api_keys_user_id was genuinely new; that's all that's kept here.
     op.create_index('ix_api_keys_user_id', 'api_keys', ['user_id'])
 
 
 def downgrade() -> None:
-    # Remove indexes
     op.drop_index('ix_api_keys_user_id', table_name='api_keys')
-    op.drop_index('ix_api_keys_key', table_name='api_keys')
-    op.drop_index('ix_users_username', table_name='users')
-    op.drop_index('ix_users_email', table_name='users')

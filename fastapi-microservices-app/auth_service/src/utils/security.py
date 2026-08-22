@@ -3,6 +3,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
 import logging
+import os
 import random
 import string
 
@@ -29,9 +30,10 @@ except Exception as e:
     pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
     logger.warning("Utilisation de sha256_crypt comme fallback pour le hachage des mots de passe")
 
-# Clé secrète pour l'encodage et le décodage JWT
-SECRET_KEY = "your_secret_key"  # Rétabli à la valeur précédente
-ALGORITHM = "HS256"
+# JWT signing secret: must come from the environment (JWT_SECRET_KEY in .env.auth).
+# Never hardcode this — anyone who can read the source can forge valid tokens.
+SECRET_KEY = os.environ["JWT_SECRET_KEY"]
+ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 VERIFICATION_CODE_LENGTH = 6 # Longueur du code de vérification
 
@@ -42,22 +44,20 @@ class TokenData(BaseModel):
     email: Optional[str] = None # Le 'sub' dans le JWT sera l'email
 
 def hash_password(password: str) -> str:
+    # No insecure fallback: if bcrypt hashing fails, the caller must see the failure
+    # rather than silently getting an unsalted, crackable hash.
     try:
         return pwd_context.hash(password)
     except Exception as e:
-        logger.error(f"Erreur lors du hachage du mot de passe: {e}")
-        # En cas d'erreur, retourner un hachage simple (NON SÉCURISÉ, JUSTE POUR DÉMONSTRATION)
-        import hashlib
-        return hashlib.sha256(password.encode()).hexdigest()
+        logger.critical(f"Password hashing failed (bcrypt unavailable/misconfigured): {e}")
+        raise
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         return pwd_context.verify(plain_password, hashed_password)
     except Exception as e:
-        logger.error(f"Erreur lors de la vérification du mot de passe: {e}")
-        # En cas d'erreur, vérifier avec le hachage simple (NON SÉCURISÉ, JUSTE POUR DÉMONSTRATION)
-        import hashlib
-        return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+        logger.error(f"Password verification failed: {e}")
+        return False
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

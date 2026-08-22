@@ -1,8 +1,8 @@
-# Environment variables
+# Environment variables (matches this project's per-service naming: .env.auth, .env.gateway, etc.)
 .env
-.env.local
-.env.production
-.env.staging
+.env.*
+!.env.example
+!.env.*.example
 
 # Python
 __pycache__/
