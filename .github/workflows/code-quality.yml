@@ -64,7 +64,7 @@ jobs:
         bandit -r logging_service/src/ -f json -o bandit_logging.json || true
 
     - name: Upload security scan results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: security-scan-results
