@@ -2,10 +2,10 @@ fastapi
 uvicorn
 pydantic
 scikit-learn
-# numpy<2: faiss-cpu's prebuilt wheels still expect the numpy 1.x C-extension
+# numpy<3: faiss-cpu's prebuilt wheels still expect the numpy 1.x C-extension
 # ABI as of this writing; unpinned, pip can resolve numpy 2.x here and every
 # faiss call segfaults on import instead of failing with a clear error.
-numpy<2
+numpy<3
 torch
 # transformers<4.40 / sentence-transformers<3.0: newer releases require
 # torch>=2.5, which has no wheel for every platform this has been verified
