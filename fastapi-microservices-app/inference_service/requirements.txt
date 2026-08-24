@@ -7,12 +7,12 @@ scikit-learn
 # faiss call segfaults on import instead of failing with a clear error.
 numpy<2
 torch
-# transformers<4.40 / sentence-transformers<3.0: newer releases require
+# transformers<4.40 / sentence-transformers<7.0: newer releases require
 # torch>=2.5, which has no wheel for every platform this has been verified
 # on - left unpinned, pip can resolve a transformers/torch combo that
 # satisfies declared constraints but fails at runtime import.
 transformers<4.40
-sentence-transformers<3.0
+sentence-transformers<7.0
 joblib
 loguru
 httpx # Ajouté pour les appels HTTP au service d'authentification
